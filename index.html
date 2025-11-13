@@ -1588,9 +1588,9 @@ async function renderPromosByFilter(categoryIds = []) {
         imgEl.alt = p.nombre || '';
         imgEl.src = imgSrc || '';
         imgEl.crossOrigin = 'anonymous'; 
-        imgEl.style.width = '100%';
-        imgEl.style.height = '120px'; 
-        imgEl.style.objectFit = 'cover';
+        imgEl.style.width = '80%';
+        imgEl.style.height = '100px'; 
+        imgEl.style.objectFit = 'contain';
         imgEl.style.borderRadius = '6px';
         imgEl.style.marginBottom = '6px';
         
@@ -1599,32 +1599,70 @@ async function renderPromosByFilter(categoryIds = []) {
         div.style.position = 'relative'; 
 
         div.innerHTML = `
-            <input type="checkbox" class="promo-select" data-promo-id="${p.id}" checked>
-            
-            <div style="position: absolute; top: 5px; right: 5px; z-index: 10;">
-                <button 
-                    onclick="openEditModal(${p.id})" 
-                    style="background: #007bff; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 10px; transition: background 0.3s;"
-                    onmouseover="this.style.background='#0056b3'"
-                    onmouseout="this.style.background='#007bff'"
-                >
-                    Editar ✏️
-                </button>
-            </div>
-            
-            <b style="text-align:center;">${safeText(p.nombre || '')}</b>
-            <div style="text-align:center;margin-top:4px;">
-                ${p.precio_anterior && Number(p.precio_anterior) > Number(p.precio) 
-                    ? `<del style="color:#888;">$${Number(p.precio_anterior).toFixed(2)}</del> <span style="color:red;font-weight:bold;">$${Number(p.precio).toFixed(2)}</span>` 
-                    : `<span style="font-weight:bold;">$${Number(p.precio).toFixed(2)}</span>`}
-            </div>
-            
-            <div style="text-align:center; margin-top: 4px; font-size: 0.9em; color: ${p.stock <= 5 ? 'red' : '#333'};">
-                Stock: <b>${p.stock !== null && p.stock !== undefined ? p.stock : 'N/A'}</b>
-            </div>
-        `;
+    <input type="checkbox" class="promo-select" data-promo-id="${p.id}" checked>
 
-        if (imgSrc) div.insertBefore(imgEl, div.querySelector('b')); 
+    <!-- Botones flotantes (EDITAR + ELIMINAR) -->
+    <div style="
+        position: absolute; 
+        top: 5px; 
+        right: 5px; 
+        z-index: 10; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: flex-end; 
+        gap: 4px;
+    ">
+        <button 
+            onclick="openEditModal(${p.id})" 
+            style="background: #007bff; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 10px; transition: background 0.3s;"
+            onmouseover="this.style.background='#0056b3'"
+            onmouseout="this.style.background='#007bff'"
+            type="button"
+        >
+            Editar ✏️
+        </button>
+        <button 
+            onclick="deletePromo(${p.id})" 
+            style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 10px; transition: background 0.3s;"
+            onmouseover="this.style.background='#a71d2a'"
+            onmouseout="this.style.background='#dc3545'"
+            type="button"
+        >
+            Eliminar 🗑️
+        </button>
+    </div>
+
+    <!-- Contenido de la tarjeta -->
+    <div style="text-align:center; margin-top: 10px;">
+        <b>${safeText(p.nombre || '')}</b>
+    </div>
+
+    <div style="text-align:center; margin-top:4px;">
+        ${
+            p.precio_anterior && Number(p.precio_anterior) > Number(p.precio)
+                ? `<del style="color:#888;">$${Number(p.precio_anterior).toFixed(2)}</del> 
+                   <span style="color:red;font-weight:bold;">$${Number(p.precio).toFixed(2)}</span>`
+                : `<span style="font-weight:bold;">$${Number(p.precio).toFixed(2)}</span>`
+        }
+    </div>
+
+    <div style="text-align:center; margin-top:4px; font-size:0.9em; color:${p.stock <= 5 ? 'red' : '#333'};">
+        Stock: <b>${p.stock !== null && p.stock !== undefined ? p.stock : 'N/A'}</b>
+    </div>
+`;
+
+
+
+
+        if (imgSrc) {
+    const nameElement = div.querySelector('b');
+    if (nameElement && nameElement.parentNode) {
+        nameElement.parentNode.parentNode.insertBefore(imgEl, nameElement.parentNode);
+    } else {
+        div.insertBefore(imgEl, div.firstChild);
+    }
+}
+
 
         promoContainer.appendChild(div);
         
@@ -1910,6 +1948,55 @@ async function exportSelectedPromos() {
         alert('Error al exportar promociones: ' + err.message);
     }
 }
+
+// =========================================================
+// 🗑️ Eliminar promoción individual + imagen del storage
+// =========================================================
+async function deletePromo(promoId) {
+    if (!confirm('¿Seguro que deseas eliminar esta promoción?')) return;
+    
+    try {
+        // 1️⃣ Traer primero la promoción para saber si tiene imagen
+        const { data: promoData, error: fetchError } = await supabase
+            .from('promociones')
+            .select('imagen')
+            .eq('id', promoId)
+            .maybeSingle();
+
+        if (fetchError) throw fetchError;
+
+        // 2️⃣ Si tiene imagen, eliminarla del bucket
+        if (promoData?.imagen) {
+            try {
+                const { error: imgDelError } = await supabase.storage
+                    .from('promo_images')
+                    .remove([promoData.imagen]);
+
+                if (imgDelError) console.warn('⚠️ No se pudo eliminar imagen:', imgDelError.message);
+            } catch (err) {
+                console.warn('Error al intentar eliminar imagen del storage:', err);
+            }
+        }
+
+        // 3️⃣ Eliminar promoción
+        const { error: deleteError } = await supabase
+            .from('promociones')
+            .delete()
+            .eq('id', promoId);
+        if (deleteError) throw deleteError;
+
+        alert('✅ Promoción eliminada correctamente.');
+
+        // 4️⃣ Recargar vista
+        const selectedIds = Array.from(document.querySelectorAll('.category-checkbox:checked')).map(cb => cb.value);
+        renderPromosByFilter(selectedIds);
+
+    } catch (err) {
+        console.error('❌ Error al eliminar la promoción:', err);
+        alert('Error al eliminar la promoción: ' + err.message);
+    }
+}
+
 
 
 document.getElementById('exportPromoPDF').addEventListener('click', exportSelectedPromos);
