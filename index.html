@@ -1,0 +1,3689 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Panel Administrativo Completo</title>
+    <style>
+        :root {
+            --sidebar-bg: #2c3e50;
+            --sidebar-hover: #34495e;
+            --accent: #ff4d4f;
+            --card-bg: #fff;
+            --text-muted: #555;
+        }
+        body { margin: 0; font-family: Arial, sans-serif; display: flex; height: 100vh; background: #f0f2f5; }
+        .sidebar { width: 220px; background: var(--sidebar-bg); color: #fff; display: flex; flex-direction: column; padding-top: 20px; flex-shrink: 0; transition: transform 0.3s ease; z-index: 9000; }
+        .sidebar h2 { text-align: center; margin-bottom: 20px; font-size: 22px; }
+        .sidebar button { background: none; border: none; color: white; text-align: left; padding: 12px 20px; cursor: pointer; font-size: 16px; width: 100%; transition: 0.2s; }
+        .sidebar button:hover, .sidebar button.active { background: var(--sidebar-hover); }
+        .content { flex: 1; padding: 20px; overflow-y: auto; }
+        .section {
+  	display: none !important;}
+	.section.active {
+  	display: block !important;}
+        h1 { margin-top: 0; margin-bottom: 15px; }
+        .card { display: flex; align-items: center; gap: 15px; background: var(--card-bg); padding: 15px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #ddd; transition: 0.3s; }
+        .card:hover { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15); }
+        .card img { width: 100px; height: 100px; object-fit: cover; border-radius: 10px; border: 1px solid #ccc; }
+        .card-info { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+        .card-info b { font-size: 1.1em; }
+        .card-price { font-size: 1em; color: var(--accent); }
+        .card-price del { color: #999; margin-right: 6px; }
+        .card-stock { font-size: 0.85em; color: var(--text-muted); }
+        .card-actions { display: flex; flex-direction: column; gap: 6px; }
+        .card-actions button { cursor: pointer; border: none; border-radius: 6px; padding: 6px 12px; font-weight: bold; transition: 0.2s; }
+        .card-actions .edit-btn { background: #3498db; color: #fff; }
+        .card-actions .edit-btn:hover { background: #2980b9; }
+        .card-actions .delete-btn { background: var(--accent); color: #fff; }
+        .card-actions .delete-btn:hover { background: #e8434f; }
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); justify-content: center; align-items: center; z-index: 9999; }
+        #modalInner { background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 1100px; max-height: 90%; overflow-y: auto; }
+        input, select, button { margin-bottom: 8px; padding: 6px; font-size: 14px; border-radius: 4px; border: 1px solid #ccc; }
+        button[type=submit] { background: var(--accent); color: #fff; border: none; cursor: pointer; }
+        button[type=submit]:hover { background: #e8434f; }
+        #menuBtn { position: absolute; left: 12px; top: 12px; background: #3498db; color: white; font-size: 22px; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; z-index: 2000; display: none; }
+        .backdrop { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 8000; pointer-events: none; }
+        .backdrop.show { display: block; pointer-events: auto; }
+        .table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        .table th, .table td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+        .table th { background: #f8f9fa; font-weight: bold; }
+        #appToast { position: fixed; right: 16px; bottom: 20px; background: #222; color: #fff; padding: 10px 14px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18); z-index: 15000; opacity: 0; transition: opacity 0.25s; }
+        @media (max-width: 768px) {
+            #menuBtn { display: block; }
+            .card { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .card-info { width: 100%; flex: initial; }
+            .card-actions { flex-direction: column; width: 100%; gap: 8px; }
+            .card-actions button { width: 100%; padding: 10px 12px; font-size: 16px; box-sizing: border-box; }
+        }
+        @media (max-width: 500px) {
+            #menuBtn { display: block; }
+            .sidebar { transform: translateX(-100%); position: fixed; top: 0; left: 0; height: 100vh; width: 70%; padding-top: 50px; box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5); }
+            .sidebar.open { transform: translateX(0); }
+            .content { flex: 1; padding: 8px; margin-top: 50px; }
+            .sidebar h2 { display: block; text-align: center; }
+            .sidebar button { text-align: left; font-size: 16px; padding: 12px 20px; }
+        }
+
+/* Busca el estilo de .promo-group-container y ajústalo así: */
+.promo-group-container {
+    display: grid;
+    /* Reducimos el minmax de 220px a 180px para tarjetas más pequeñas */
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
+    gap: 12px; /* Reducimos el espacio entre tarjetas */
+    margin-bottom: 25px; 
+}
+
+
+/* Ajuste de la tarjeta para que se vea bien en la cuadrícula */
+.promo-card {
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    /* Se elimina el width fijo: width: 200px; */ 
+}
+
+/* Estilos para el Desplegable */
+.dropdown-container {
+    position: relative;
+    width: 100%;
+}
+
+.dropdown-menu {
+    display: none; /* Inicialmente oculto */
+    background: #34495e; /* Un tono un poco más oscuro que el sidebar */
+    width: 100%;
+    padding: 5px 0;
+    transition: max-height 0.3s ease-out;
+    overflow: hidden;
+    /* Evita que se solape con el botón de abajo visualmente */
+    border-top: 1px solid rgba(0, 0, 0, 0.2); 
+}
+
+.dropdown-menu.open {
+    display: block;
+}
+
+.dropdown-menu button {
+    background: none;
+    border: none;
+    color: white;
+    text-align: left;
+    padding: 8px 30px; /* Más padding para indentar */
+    cursor: pointer;
+    font-size: 15px;
+    width: 100%;
+    transition: 0.2s;
+}
+
+.dropdown-menu button:hover, .dropdown-menu button.active {
+    background: #4a677e; /* Tono de hover para el submenú */
+}
+
+/* Estilos del Modal */
+.modal {
+    display: none; /* Oculto por defecto */
+    position: fixed; /* Posicionamiento fijo */
+    z-index: 1000; /* Siempre encima */
+    left: 0;
+    top: 0;
+    width: 100%; 
+    height: 100%; 
+    overflow: auto; 
+    background-color: rgba(0,0,0,0.4); /* Fondo semi-transparente */
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 10% auto; /* 10% desde arriba y centrado */
+    padding: 25px;
+    border: 1px solid #888;
+    width: 80%; 
+    max-width: 500px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.close-button {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.modal-content h3 {
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 10px;
+    margin-top: 0;
+}
+
+.modal-content label {
+    display: block;
+    margin-top: 15px;
+    font-weight: bold;
+    color: #333;
+}
+
+.modal-content input[type="number"],
+.modal-content input[type="file"] {
+    width: 100%;
+    padding: 8px;
+    margin-top: 5px;
+    margin-bottom: 10px;
+    display: inline-block;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box; /* Incluye padding y borde en el ancho/alto */
+}
+
+/* Botones */
+.save-btn {
+    background-color: #28a745;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+
+
+<div id="tiendaCliente">
+    <h2>Tienda</h2>
+    <div id="productosContainer" class="productos-container"></div>
+    <div class="pedido-footer">
+    <button onclick="confirmarPedido()">Confirmar Pedido</button>
+    </div>
+</div>
+
+
+<div id="resumenCarrito" style="padding: 15px; border: 1px solid #ccc; border-radius: 8px;">
+    
+    <h4>🛒 Mi Pedido (<span id="carritoCount">0</span>)</h4>
+    
+    <div id="carritoLista" style="margin-bottom: 10px;">
+        <span class="text-muted">No hay productos seleccionados</span>
+    </div>
+
+    <hr style="border: none; border-top: 1px dashed #ddd;">
+
+    <p style="margin-top:8px; font-weight:bold;">
+        Total: 
+        <span id="carritoTotal" style="float: right;">$0.00</span>
+    </p>
+
+    <button onclick="abrirModalPedido()" style="width: 100%; margin-top: 15px;">
+        Confirmar y Enviar Pedido
+    </button>
+</div>
+
+
+
+<!-- CATEGORÍAS -->
+<div id="categoriasContainer" class="categorias-container"></div>
+
+
+<div id="carritoModal">
+    <h3>Mi Pedido</h3>
+    
+   
+    <div class="modal-content">
+    <h3>Confirmar Pedido</h3>
+    <label>Nombre:</label>
+    <input id="modalClienteNombre" type="text" placeholder="Nombre completo">
+    
+    <label>Localidad:</label>
+    <select id="modalLocalidadSelect"></select>
+    
+    <div style="margin-top:10px; display:flex; gap:8px; justify-content:flex-end;">
+      <button id="cancelarPedidoBtn" onclick="document.getElementById('pedidoModal').style.display='none'">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+.categorias-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.categoria-btn {
+  padding: 8px 14px;
+  border: none;
+  background: #3498db;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.categoria-btn:hover {
+  background: #2980b9;
+}
+
+#productosContainer {
+    /* 1. Activa Flexbox para colocar los hijos uno al lado del otro */
+    display: flex; 
+    
+    /* 2. Permite que las tarjetas salten a una nueva línea si no hay espacio */
+    flex-wrap: wrap;
+    
+    /* 3. Distribuye el espacio entre las tarjetas */
+    justify-content: flex-start; /* O usa 'space-around' o 'space-between' */
+    
+    /* 4. Opcional: añade un poco de separación entre los elementos */
+    gap: 20px; /* Espacio horizontal y vertical entre las tarjetas */
+    
+    /* 5. Opcional: padding interno para que no queden pegadas al borde del contenedor */
+    padding: 20px;
+}
+
+/* Regla para la tarjeta individual, asegurando que tiene un ancho mínimo */
+.promo-card {
+    /* Asegura que la tarjeta no sea más ancha que su contenedor (por ejemplo, 200px) */
+    width: 200px; 
+    
+    /* Permite que la tarjeta se encoja si es necesario (cuando no hay espacio) */
+    flex-shrink: 1; 
+    
+    /* Mínimo ancho para evitar que se aplaste demasiado */
+    min-width: 180px; 
+    
+    /* ... (resto de tus estilos de promo-card) */
+}
+
+
+.promo-card img {
+  width: 100%;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.qty-control {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+}
+.qty-btn {
+  padding: 4px 10px;
+  font-size: 18px;
+  background: #eee;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.qty-btn:hover {
+  background: #ccc;
+}
+
+.carrito-resumen {
+  margin-top: 24px;
+  background: #f8f8f8;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.carrito-lista table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.carrito-lista td, .carrito-lista th {
+  padding: 6px;
+  border-bottom: 1px solid #ddd;
+}
+.carrito-total {
+  font-weight: bold;
+  margin-top: 8px;
+  text-align: right;
+}
+
+.btn-confirmar {
+  width: 100%;
+  padding: 10px;
+  background: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+.btn-confirmar:hover {
+  background: #219150;
+}
+
+/* Modal */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 1000;
+}
+.modal-content {
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  width: 320px;
+  margin: 100px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.btn {
+  background: #3498db;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.btn-cancel {
+  background: #e74c3c;
+  color: #fff;
+}
+
+
+.promo-img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 5px;
+    margin-bottom: 5px;
+}
+
+
+
+
+
+/* --------------------
+   AJUSTE DE ALINEACIÓN (Vertical)
+   -------------------- */
+.button-group {
+    display: flex; 
+    /* 💡 Clave: Cambia la dirección del flexbox a columna (vertical) */
+    flex-direction: column; 
+    
+    /* Centra ambos botones en el eje horizontal (opcional) */
+    align-items: center; 
+    
+    /* Esto alinea el grupo completo a la derecha, si el contenedor es ancho (opcional) */
+    justify-content: flex-end; 
+    
+    /* Espacio vertical entre los botones */
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+/* --------------------
+   RESTO DE ESTILOS (Mantenidos)
+   -------------------- */
+/* --------------------
+   AJUSTE DE ALINEACIÓN (Vertical y a la Izquierda) 👈
+   -------------------- */
+.button-group {
+    display: flex; 
+    /* Direccion vertical (uno debajo del otro) */
+    flex-direction: column; 
+    
+    /* 💡 Clave: Esto alinea los elementos (botones) a la izquierda */
+    align-items: flex-start; 
+    
+    /* Si tienes un contenedor grande, asegúrate que el grupo esté a la izquierda */
+    justify-content: flex-start; /* Esto alinea el grupo completo a la izquierda */
+    
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+/* --------------------
+   ESTILOS BASE DEL BOTÓN
+   -------------------- */
+.button {
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    /* Asegura que los botones no se estiren más de un ancho razonable */
+    width: 100%; 
+    max-width: 250px; 
+}
+
+/* Botón AGREGAR (Primario) */
+.button-primary {
+    background-color: #007bff; 
+    color: white; 
+    border: 2px solid #007bff; 
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); 
+}
+.button-primary:hover { background-color: #0056b3; border-color: #0056b3; }
+/* ... (otros estilos de hover/active) */
+
+/* Botón EXPORTAR (Secundario) */
+.button-secondary {
+    background-color: transparent; 
+    color: #333; 
+    border: 2px solid #ccc; 
+}
+.button-secondary:hover { background-color: #f0f0f0; border-color: #b3b3b3; }
+.button-secondary:active { transform: translateY(1px); }
+.cancel-btn {
+    background-color: #6c757d;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+
+/* 1. Contenedor principal: organiza los elementos en fila y maneja el desbordamiento */
+.category-buttons-container {
+    display: flex;
+    flex-wrap: wrap; /* Permite que los botones salten a la siguiente línea si no hay espacio */
+    gap: 10px; /* Espacio uniforme entre todos los elementos (botones y botón de acción) */
+    padding: 15px 0;
+    align-items: center; /* Alinea verticalmente el botón de acción con los botones de categoría */
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 20px;
+}
+
+
+/* 2. Estilo base del botón de categoría */
+.category-button-label {
+    /* Quitamos el borde inline anterior y usamos un diseño más limpio */
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 15px;
+    background-color: #f8f8f8; /* Fondo claro por defecto */
+    color: #333;
+    border: 1px solid #ccc;
+    border-radius: 20px; /* Bordes redondeados para un aspecto moderno */
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    font-size: 14px;
+    user-select: none; /* Evita selección de texto al hacer clic */
+}
+
+/* 3. Efecto hover */
+.category-button-label:hover {
+    background-color: #eee;
+    border-color: #aaa;
+}
+
+/* 4. Estilo de SELECCIONADO (VISTOSO) */
+/* Aplicado cuando el checkbox DENTRO del label está marcado */
+.category-checkbox:checked + label {
+    /* El selector + label no funciona aquí porque el checkbox no está antes del label, está dentro. 
+       Usaremos el selector padre: */
+}
+
+.category-checkbox:checked {
+    /* Para ocultar el checkbox por defecto si quieres que solo se vea el color del label */
+    /* display: none; */ 
+}
+
+/* Estilo para el label cuando el checkbox DENTRO está chequeado. */
+/* Como el checkbox es el primer hijo, debemos usar un selector más complejo si queremos 
+   cambiar el estilo del padre. La forma más sencilla es usar la clase y el selector :has() 
+   (si es soportado) o cambiar ligeramente la estructura. 
+   
+   Por simplicidad y compatibilidad: El estilo se aplicará al label cuando el checkbox esté checked. */
+
+/* Estilo simple (si no ocultas el checkbox): */
+.category-checkbox:checked + .category-button-label { /* Esto requiere que el label esté DENTRO del input, o el checkbox esté FUERA. */
+    
+}
+/* La estructura actual es: <label><input type="checkbox">Texto</label>
+   El CSS debe ser: */
+.category-button-label:has(.category-checkbox:checked) {
+    background-color: #007bff; /* Color de selección azul vibrante */
+    color: white;
+    border-color: #0056b3;
+}
+
+
+/* Si no usas :has() (navegadores antiguos), puedes dejar el diseño del checkbox visible, 
+   o simplificar el JavaScript para que la clase se añada al label con un listener 'change'. */
+
+/* Para el diseño VISTOSO, asegúrate que los checkboxes por defecto sean menos intrusivos */
+.category-checkbox {
+    /* Estilos opcionales para checkbox */
+    accent-color: #007bff;
+}
+
+/* 5. Estilo del botón principal de acción */
+.action-button {
+    background-color: #28a745;
+    color: white;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-weight: bold;
+}
+
+.action-button:hover {
+    background-color: #1e7e34;
+}
+
+
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+</head>
+
+
+<body> 	
+
+
+ <nav class="sidebar">
+  <h2>MENU</h2>
+  <ul style="list-style:none; padding:0; margin:0;">
+<li><button class="tab-btn" data-tab="pedidos">Pedidos</button></li>    
+<li><button class="tab-btn active" data-tab="promos">Promociones</button></li>
+    
+    <li><button class="tab-btn" data-tab="categorias">Categorías</button></li>
+    <li><button class="tab-btn" data-tab="localidades">Localidades</button></li>
+    <li><button class="tab-btn" data-tab="documentos">Documentos</button></li>
+    </ul>
+</nav>
+   
+    
+    
+<div class="content">
+<!-- 🔹 Agregar este botón junto al de Exportar -->
+<div>
+<button id="addPromoBtn" 
+  style="margin-left:10px;padding:6px 12px;background:#2ecc71;color:#fff;
+  border:none;border-radius:6px;cursor:pointer;">
+  ➕ Nueva Promoción
+</div>
+        <div id="promos" class="section active">
+        <div style="margin-bottom:20px;">
+	<div id="promoCategoriaFilter" style="margin-bottom: 50px;">
+    	</div>
+        </select>
+        <option value="">Todas las categorías</option>
+        </select>
+        <button id="exportPromoPDF" style="margin-left:10px;padding:6px 12px;background:#3498db;color:#fff;border:none;border-radius:6px;cursor:pointer;">Exportar 	seleccionados</button>
+        </div>
+        <div id="promoList" style="display:grid; grid-template-rows: repeat(auto-fill,minmax(250px,1fr)); gap:16px;"></div>
+        </div>
+	<div id="editPromoModal" class="modal">
+    	<div class="modal-content">
+        <span class="close-button" onclick="document.getElementById('editPromoModal').style.display = 'none'">&times;</span>
+        <h3>Editar Promoción</h3>
+        <input type="hidden" id="modalPromoId">
+        <input type="hidden" id="modalOldImageName">
+        
+        <label for="modalImageFile">Cambiar Imagen:</label>
+        <input type="file" id="modalImageFile" accept="image/*">
+        <p>Imagen actual: <span id="modalCurrentImageName" style="font-style: italic;"></span></p>
+
+        <label for="modalPrecio">Precio Actual ($):</label>
+        <input type="number" id="modalPrecio" min="0" step="0.01" required>
+        
+        <label for="modalPrecioAnterior">Precio Anterior ($):</label>
+        <input type="number" id="modalPrecioAnterior" min="0" step="0.01">
+        
+        <label for="modalStock">Stock (unidades):</label>
+        <input type="number" id="modalStock" min="0" required>
+
+<!-- Campo: Categoría -->
+<label for="modalCategoria">Categoría:</label>
+<select id="modalCategoria" style="width: 100%; padding: 6px; border-radius: 5px; border: 1px solid #ccc;">
+  <option value="">Cargando categorías...</option>
+</select>
+         
+
+        
+        <div style="margin-top: 20px; text-align: right;">
+            <button onclick="document.getElementById('editPromoModal').style.display = 'none'" class="cancel-btn">Cancelar</button>
+            <button onclick="savePromotionChanges()" class="save-btn">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+        <div id="pedidos" class="section">
+            <h2>Pedidos</h2>
+            <form id="pedidoForm" onsubmit="return false;" 
+      style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; align-items:flex-start;">
+<!-- Cliente: más largo -->
+    <div style=""width:40%; min-width:50px; display:flex; flex-direction:column;">
+        <label>Cliente</label>
+        <input id="pedidoCliente" type="text" placeholder="Nombre cliente" style="width:500px;" /> <div>
+	</div>
+<!-- DNI -->
+	<div style="width:30%; min-width:180px; display:flex; flex-direction:column;">
+  <label>DNI</label>
+  <input id="pedidoDni" type="text" placeholder="Documento del cliente" style="width:500px;" />
+</div>
+<!-- Localidad -->
+    	<div style=""width:30%; min-width:180px; display:flex; flex-direction:column;">
+        <label>Localidad</label>
+        <select id="pedidoLocalidad" style="width:500px;"></select> <div>
+	</div>
+<!-- Seleccionar Productos -->
+    	<div style="flex:1; min-width:180px; display:flex; flex-direction:column; justify-content:flex-start;">
+        <label>Productos</label>
+        <button type="button" id="selectProductsBtn" 
+        style="width:300px; background-color:#4CAF50; color:white; border:none; padding:8px 0; border-radius:4px; cursor:pointer;">
+        Seleccionar Productos
+        </button> <div>
+<!-- Productos seleccionados debajo -->
+	<div style="width:100%; margin-top:6px;">
+        <div id="selectedProductsContainer" class="small-muted">No hay productos seleccionados</div>
+</div>
+    	</div>
+
+	<div class="button-group">
+	<button type="button" id="addOrderBtn" class="button button-primary">
+        + Confirmar Pedido
+    	</button>
+    	</div>
+    	</div>
+	</div>	
+	<h2>Lista de Pedidos</h2>
+	<div id="pedidoList"></div>
+	</div>
+	</div>
+
+
+
+
+<!-- 🔹 Modal de imagen ampliada -->
+<div id="imageModal" 
+     style="display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%;
+            background:rgba(0,0,0,0.85); justify-content:center; align-items:center;">
+  <img id="modalImage" 
+       src="" 
+       alt="Imagen de promoción" 
+       style="max-width:90%; max-height:90%; border-radius:10px; box-shadow:0 0 15px rgba(0,0,0,0.5);">
+</div>
+
+
+
+
+
+<div id="categorias" class="section">
+	<h1>Gestión de Categorías</h1>
+ 	
+  	<button id="addCategoriaBtn">Agregar</button>
+  	<div id="categoriaList"></div>
+	</div>
+
+
+<!-- LOCALIDADES -->
+      <div id="localidades" class="section">
+      <h1>Gestión de Localidades</h1>
+      <input type="text" id="localidadNombre" placeholder="Nueva localidad" />
+      <button onclick="addLocalidad()">Agregar</button>
+      <div id="localidadList"></div>
+      </div>
+
+
+<div id="documentos" class="section">
+      <h1>Gestión de Documentos</h1>
+      <input type="file" id="docArchivo" />
+      <button id="addDocumentoBtn">Agregar Documento</button>
+      <button id="fetchDocumentosBtn">Actualizar Documentos</button>
+      <div id="docList" style="margin-top:18px;"></div>
+      </div>
+
+
+
+       
+
+
+<!-- Contenedor de categorías y promociones -->
+<div id="categoriasContainer"></div>
+<div id="productosContainer"></div>
+
+    <div id="productosContainer"></div> <!-- Aquí van las categorías y productos -->
+    </div>
+</div>
+
+
+<div id="pedidoModal" class="modal">
+  <div class="modal-content">
+    <h3>Confirmar Pedido</h3>
+    <label>Nombre:</label>
+    <input id="modalClienteNombre" type="text" placeholder="Nombre completo">
+    <label>DNI:</label>
+<input id="modalClienteDni" type="text" placeholder="Documento del cliente">
+    <label>Localidad:</label>
+    <select id="modalLocalidadSelect"></select>
+    <div style="margin-top:10px; display:flex; gap:8px; justify-content:flex-end;">
+      <button onclick="cerrarModalPedido()">Cancelar</button>
+<button onclick="confirmarPedido()">Confirmar Pedido</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- === MODAL GENÉRICO === -->
+<div id="modal" style="
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+">
+  <div id="modalInner" style="
+    background: #fff;
+    padding: 24px;
+    border-radius: 12px;
+    max-width: 900px;
+    width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+  ">
+    <!-- contenido dinámico -->
+  </div>
+  <button onclick="closeModal()" style="
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    background: #ff4d4f;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-weight: bold;
+  ">✖</button>
+</div>
+
+
+
+
+
+<!-- Modal Medios de Pago -->
+<div id="modalPago" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+background:rgba(0,0,0,0.6);justify-content:center;align-items:center;z-index:9999;">
+  <div style="background:white;padding:25px;border-radius:10px;max-width:500px;width:90%;text-align:left;">
+    <h3>Registrar Medios de Pago</h3>
+    <div id="listaPagos"></div>
+ Total: $<span id="pagoTotal">0.00</span>
+    <button onclick="agregarMedioPago()" 
+      style="margin:10px 0;background:#2ecc71;color:white;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;">
+      + Agregar método
+    </button>
+    <hr>
+    <p><b>Total pedido:</b> $<span id="totalPedido"></span></p>
+    <p><b>Total abonado:</b> $<span id="totalPagado">0.00</span></p>
+    <p><b>Saldo pendiente:</b> $<span id="saldoPendiente">0.00</span></p>
+    <p><b>Estado del Pedido:</b> $<span id="estadoPedido">Pendiente</span></p>
+    <div style="text-align:right;margin-top:15px;">
+      <button onclick="cerrarModalPago()" style="padding:8px 12px;">Cancelar</button>
+      <button onclick="guardarPagosPedido()" 
+        style="padding:8px 12px;background:#3498db;color:white;border:none;border-radius:6px;">Guardar</button>
+    </div>
+  </div>
+</div>
+
+
+
+<div id="addPromoModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <span class="close-button" onclick="document.getElementById('addPromoModal').style.display='none'">&times;</span>
+    <h3>Nueva Promoción</h3>
+
+    <label for="newPromoNombre">Nombre de la promoción:</label>
+   <input type="text" id="newPromoNombre" placeholder="Nombre" />
+
+    <label for="newPromoPrecio">Precio ($):</label>
+    <input type="number" id="newPromoPrecio" min="0" step="0.01" />
+<label for="newPromoPrecioAnterior">Precio anterior ($):</label>
+<input type="number" id="newPromoPrecioAnterior" min="0" step="0.01">
+    <label for="newPromoStock">Stock (unidades):</label>
+    <input type="number" id="newPromoStock" name="stock" min="0">
+    <label for="newPromoCategoria">Categoría:</label>
+    <select id="newPromoCategoria"></select>
+
+    <label for="newPromoImagen">Imagen:</label>
+    <input type="file" id="newPromoImagen" accept="image/*">
+
+    <div style="margin-top: 20px; text-align: right;">
+      <button onclick="document.getElementById('addPromoModal').style.display='none'" class="cancel-btn">Cancelar</button>
+      <button onclick="guardarNuevaPromo()" class="save-btn">Guardar</button>
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+
+
+
+document.getElementById("addPromoBtn").addEventListener("click", async () => {
+  // Cargar categorías para el select
+  const { data: categorias } = await supabase.from("categorias").select("id,nombre").order("nombre");
+  const select = document.getElementById("newPromoCategoria");
+  select.innerHTML = categorias.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+  document.getElementById("addPromoModal").style.display = "block";
+});
+
+async function guardarNuevaPromo() {
+  const nombre = document.getElementById("newPromoNombre").value.trim();
+  const precio = parseFloat(document.getElementById("newPromoPrecio").value);
+const precio_anterior = parseFloat(document.getElementById("newPromoPrecioAnterior").value) || null;
+  const stock = parseInt(document.getElementById("newPromoStock").value);
+  const categoria_id = document.getElementById("newPromoCategoria").value || null;
+  const file = document.getElementById("newPromoImagen").files[0];
+
+  if (!nombre || isNaN(precio) || isNaN(stock)) {
+    alert("Completa todos los campos obligatorios.");
+    return;
+  }
+
+  let imagenPath = null;
+  if (file) {
+    const fileName = `promo_${Date.now()}_${file.name}`;
+    const { error: uploadError } = await supabase.storage.from("promo_images").upload(fileName, file);
+    if (uploadError) return alert("Error al subir la imagen: " + uploadError.message);
+    imagenPath = fileName;
+  }
+
+
+
+  const { error } = await supabase.from("promociones").insert([{ nombre, precio, precio_anterior, stock, categoria_id, imagen: imagenPath }]);
+  if (error) return alert("Error al guardar: " + error.message);
+
+  document.getElementById("addPromoModal").style.display = "none";
+  showToast("✅ Promoción agregada correctamente");
+  fetchPromos(); // Refrescar lista
+}
+
+// 🔹 Limpiar campos para cargar una nueva promo
+  document.getElementById("newPromoNombre").value = "";
+  document.getElementById("newPromoPrecio").value = "";
+  document.getElementById("newPromoPrecioAnterior").value = "";
+  document.getElementById("newPromoStock").value = "";
+  document.getElementById("newPromoCategoria").selectedIndex = 0;
+  document.getElementById("newPromoImagen").value = "";
+
+
+
+// Función para mostrar la sección deseada y ocultar todas las demás
+function navigateTo(tabName) {
+    // 1. Oculta todas las secciones
+    document.querySelectorAll('.section').forEach(section => {
+        section.classList.remove('active');
+    });
+
+    // 2. Muestra la sección deseada
+    const targetSection = document.getElementById(tabName);
+    if (targetSection) {
+        targetSection.classList.add('active');
+        // ... (resto de lógica del sidebar)
+    }
+
+    // 3. Actualiza el estado 'active' de los botones
+    document.querySelectorAll('.sidebar .tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // El botón de la pestaña seleccionada se activa
+    const targetButton = document.querySelector(`.sidebar .tab-btn[data-tab="${tabName}"]`);
+    if (targetButton) {
+        targetButton.classList.add('active');
+    }
+
+    // 4. LÓGICA CLAVE: Cerrar el desplegable de Promociones si navegamos a otra sección
+    const promoSubMenu = document.getElementById('promoSubMenu');
+    const promoToggleBtn = document.querySelector('.dropdown-toggle');
+    
+
+}
+
+
+// 🔹 Mostrar imagen en grande
+function mostrarImagenPromo(url) {
+  const modal = document.getElementById("imageModal");
+  const img = document.getElementById("modalImage");
+  img.src = url;
+  modal.style.display = "flex";
+}
+
+// 🔹 Cerrar modal al hacer clic en cualquier parte oscura o en la imagen
+document.getElementById("imageModal").addEventListener("click", () => {
+  document.getElementById("imageModal").style.display = "none";
+  document.getElementById("modalImage").src = "";
+});
+
+
+
+
+/* =========================================================
+   Configuración Supabase (cliente)
+   ========================================================= */
+const SUPABASE_URL = "https://rgbjinmllhhymczumwhs.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJnYmppbm1sbGhoeW1jenVtd2hzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMwNDA5MDcsImV4cCI6MjA3ODYxNjkwN30.y7uSk4gEVJNbPvuLDC0ZXOyA8OhogptbKAofodxgV1w";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* =========================================================
+   Utilidades generales
+   ========================================================= */
+function escapeHtml(t){ const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+function safeText(t){ return escapeHtml(t); }
+function showToast(text, tiempo = 2200) {
+    let toast = document.getElementById('appToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'appToast';
+        toast.style.cssText = 'position:fixed;right:16px;bottom:20px;background:#2ecc71;color:#fff;padding:12px 18px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.3);z-index:15000;opacity:0;transition:opacity .25s;';
+        document.body.appendChild(toast);
+    }
+    toast.innerText = text;
+    toast.style.opacity = '1';
+    clearTimeout(toast._to);
+    toast._to = setTimeout(() => { toast.style.opacity = '0'; }, tiempo);
+}
+function openModal(innerHtml) {
+    const inner = document.getElementById('modalInner');
+    inner.innerHTML = innerHtml;
+    document.getElementById('modal').style.display = 'flex';
+}
+function closeModal(){ document.getElementById('modal').style.display = 'none'; }
+
+/* =========================================================
+   Sidebar & Navegación entre secciones
+   ========================================================= */
+function toggleSidebar(){
+  const sidebar = document.querySelector('.sidebar');
+  const backdrop = document.getElementById('backdrop');
+  sidebar.classList.toggle('open');
+  backdrop.classList.toggle('show');
+}
+
+document.getElementById('menuBtn')?.addEventListener('click', toggleSidebar);
+
+
+// La función de limpieza que debes haber definido:
+function limpiarContenedoresTienda() {
+    const categoriasCont = document.getElementById('categoriasContainer');
+    const productosCont = document.getElementById('productosContainer');
+
+    if (categoriasCont) categoriasCont.innerHTML = ''; 
+    if (productosCont) productosCont.innerHTML = ''; 
+}
+
+
+// Función única para manejar el cambio de secciones
+function activateSection(tab) {
+  
+  // 💥 PASO 1: Si no vamos a la tienda, limpiamos sus elementos inyectados 💥
+  if (tab !== 'clienteTienda') {
+      limpiarContenedoresTienda();
+  }
+    
+  // 2. Quita 'active' de todas las secciones
+  document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+
+  // 3. Activa la sección seleccionada
+  const section = document.getElementById(tab);
+  if (section) section.classList.add('active');
+
+  // 4. Carga los datos específicos
+  if (tab === 'promos') fetchPromos();  else if (tab === 'pedidos') fetchOrders();
+  // ... (resto de las cargas de datos)
+  else if (tab === 'clienteTienda') cargarTiendaCliente(); 
+}
+
+
+// 5. Escucha los clics de los botones del menú
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    activateSection(tab);
+    if (window.innerWidth <= 500 && document.querySelector('.sidebar').classList.contains('open')) {
+      toggleSidebar();
+    }
+  });
+});
+
+// Mostrar Promos por defecto
+activateSection('promos');
+
+/* =========================================================
+   Variables globales
+   ========================================================= */
+let selectedProducts = [];
+let editingOrderId = null;
+let promociones = [];
+let categorias = [];
+let localidadSeleccionada = null; // Para la confirmación del pedido
+// Variables específicas de la tienda cliente
+let carritoCliente = [];
+let promocionesGlobal = []; // Contiene todas las promos de la categoría actual
+let categoriaTiendaActual = null;
+
+// 💥 NUEVA VARIABLE GLOBAL PARA CANTIDAD TEMPORAL EN TARJETA 💥
+let cantidadesLocales = {};
+
+
+
+
+/**
+ * Maneja el clic en un botón de categoría del submenú.
+ */
+function handleCategoryFilter() {
+    const categoryId = this.dataset.categoryId;
+    
+    // 1. Marcar el botón activo y resetear los demás
+    document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active'));
+    this.classList.add('active');
+    
+    // 2. Asegurar que la sección de promos esté activa
+    document.querySelectorAll('.section').forEach((section) => section.classList.remove('active'));
+    document.getElementById('promos').classList.add('active');
+    
+    // 3. Llamar a la función de renderizado para cargar las promos filtradas
+    // Si tienes el selector de filtro en el DOM, actualiza su valor:
+    const filterSelect = document.getElementById('promoCategoriaFilter');
+    if (filterSelect) filterSelect.removeEventListener('change', handlePromoFilterChange);
+    
+    // Llamar a la función de renderizado (que ahora debe estar optimizada para el ID)
+    renderPromosByFilter(categoryId); 
+}
+
+
+/* =========================================================
+   Promociones: Carga Inicial de Categorías en Submenú
+   ========================================================= */
+
+async function loadPromoSubMenu() {
+    try {
+        const { data: categorias = [], error: catError } = await supabase.from("categorias").select("id,nombre").order("nombre");
+        if (catError) throw catError;
+        
+        const subMenu = document.getElementById('promoSubMenu');
+        if (!subMenu) return;
+
+        subMenu.innerHTML = ''; // Limpiar el menú antes de llenarlo
+
+        // Opción: "Ver Todas" al inicio
+        const allBtn = document.createElement('button');
+        allBtn.textContent = 'Todas las Promociones';
+        allBtn.className = 'category-btn active'; // Activo por defecto
+        allBtn.dataset.categoryId = ''; 
+        allBtn.addEventListener('click', handleCategoryFilter);
+        subMenu.appendChild(allBtn);
+
+        // Botones de Categoría
+        categorias.forEach(c => {
+            const btn = document.createElement('button');
+            btn.textContent = safeText(c.nombre);
+            btn.className = 'category-btn';
+            btn.dataset.categoryId = c.id;
+            btn.addEventListener('click', handleCategoryFilter);
+            subMenu.appendChild(btn);
+        });
+
+    } catch (err) {
+        console.error('loadPromoSubMenu error', err);
+    }
+}
+
+
+
+
+/**
+ * Carga las categorías existentes en el select del modal.
+ * @param {string|null} selectedId - ID de categoría actualmente seleccionada (si hay).
+ */
+async function loadCategoriesIntoModal(selectedId = null) {
+    const select = document.getElementById('modalCategoria');
+    if (!select) return;
+
+    try {
+        const { data: categorias, error } = await supabase
+            .from('categorias')
+            .select('id, nombre')
+            .order('nombre', { ascending: true });
+
+        if (error) throw error;
+
+        // Limpiar el select
+        select.innerHTML = '';
+
+        // Rellenar con opciones
+        categorias.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.id;
+            option.textContent = cat.nombre;
+            if (selectedId && parseInt(selectedId) === cat.id) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+
+    } catch (err) {
+        console.error('Error al cargar categorías:', err);
+        select.innerHTML = '<option value="">Error al cargar</option>';
+    }
+}
+
+
+
+
+// ===============================================
+// === 🆕 FUNCIONES DE EDICIÓN Y MODAL 🆕 ===
+// ===============================================
+
+/**
+ * Abre el modal y carga los datos de la promoción seleccionada.
+ * @param {number} promoId - ID de la promoción a editar.
+ */
+async function openEditModal(promoId) {
+    const modal = document.getElementById('editPromoModal');
+    if (!modal) {
+        console.error("Modal 'editPromoModal' no encontrado.");
+        return;
+    }
+
+    try {
+        // 1. Obtener los datos de la promoción
+        const { data: promo, error } = await supabase
+            .from('promociones')
+            .select('*')
+            .eq('id', promoId)
+            .maybeSingle();
+
+        if (error || !promo) throw new Error(error?.message || 'Promoción no encontrada');
+
+        // 2. Llenar los campos del modal
+        document.getElementById('modalPromoId').value = promo.id;
+        document.getElementById('modalOldImageName').value = promo.imagen || '';
+        document.getElementById('modalCurrentImageName').textContent = promo.imagen || 'Sin imagen';
+        document.getElementById('modalPrecio').value = promo.precio || 0;
+        document.getElementById('modalPrecioAnterior').value = promo.precio_anterior || '';
+        document.getElementById('modalStock').value = promo.stock || 0;
+
+        // Cargar categorías en el select
+        await loadCategoriesIntoModal(promo.categoria_id || null);
+
+        // Seleccionar la categoría actual
+        const catSelect = document.getElementById('modalCategoria');
+        if (catSelect && promo.categoria_id) {
+            catSelect.value = promo.categoria_id;
+        }
+
+        // Limpiar campo de archivo
+        document.getElementById('modalImageFile').value = '';
+
+        // 3. Mostrar el modal
+        modal.style.display = 'block';
+
+    } catch (err) {
+        console.error('Error al abrir modal de edición:', err);
+        alert('Error al cargar datos: ' + err.message);
+    }
+}
+
+/**
+ * Guarda los cambios de la promoción, maneja la carga/eliminación de la imagen.
+ */
+async function savePromotionChanges() {
+    const promoId = document.getElementById('modalPromoId').value;
+    const oldImageName = document.getElementById('modalOldImageName').value;
+    const newImageFile = document.getElementById('modalImageFile').files[0];
+    const newPrecio = parseFloat(document.getElementById('modalPrecio').value);
+    const newPrecioAnterior = parseFloat(document.getElementById('modalPrecioAnterior').value);
+    const newStock = parseInt(document.getElementById('modalStock').value) || 0;
+    const newCategoriaId = document.getElementById('modalCategoria').value || null;
+
+    let newImageName = oldImageName;
+
+    if (!promoId) return alert('ID de promoción no encontrado.');
+
+    try {
+        // 1. Manejo de la carga de imagen
+        if (newImageFile) {
+            const fileExtension = newImageFile.name.split('.').pop();
+            const uniqueName = `${promoId}_${Date.now()}.${fileExtension}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('promo_images')
+                .upload(uniqueName, newImageFile, {
+                    cacheControl: '3600',
+                    upsert: false
+                });
+
+            if (uploadError) throw uploadError;
+
+            newImageName = uniqueName;
+
+            // Eliminar la imagen anterior si existe
+            if (oldImageName && oldImageName !== newImageName) {
+                const { error: deleteError } = await supabase.storage
+                    .from('promo_images')
+                    .remove([oldImageName]);
+                if (deleteError) console.warn('No se pudo eliminar la imagen anterior:', deleteError);
+            }
+        }
+
+        // 2. Actualizar la base de datos
+        const { error: updateError } = await supabase
+            .from('promociones')
+            .update({
+                precio: newPrecio,
+                precio_anterior: isNaN(newPrecioAnterior) ? null : newPrecioAnterior,
+                stock: newStock,
+                imagen: newImageName,
+                categoria_id: newCategoriaId
+            })
+            .eq('id', promoId);
+
+        if (updateError) throw updateError;
+
+        alert('✅ Promoción actualizada con éxito!');
+        document.getElementById('editPromoModal').style.display = 'none';
+
+        // 3. Recargar la lista para reflejar cambios
+        const currentCategoryId = document.getElementById('promoCategoriaFilter').value;
+        await renderPromosByFilter(currentCategoryId);
+
+    } catch (err) {
+        console.error('Error al guardar cambios:', err);
+        alert('Error al guardar cambios: ' + err.message);
+    }
+}
+
+
+/**
+ * Muestra u oculta y actualiza la barra de progreso.
+ * @param {string} containerId - ID del contenedor de la barra (e.g., 'progressBarContainer').
+ * @param {number} progress - Progreso en porcentaje (0-100).
+ * @param {string} text - Texto a mostrar.
+ * @param {boolean} visible - Si debe ser visible.
+ */
+function updateProgressBar(containerId, progress, text, visible = true) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (visible) {
+        // Asegurar que la barra existe dentro del contenedor (si no existe, la crea)
+        let bar = container.querySelector('.progress-bar');
+        let barText = container.querySelector('.progress-text');
+        
+        if (!bar) {
+            // Estructura mínima de la barra (con estilos inline para simplicidad)
+            container.innerHTML = `
+                <div class="progress-bar-inner" style="height: 10px; background-color: #f3f3f3; border-radius: 5px; margin-top: 5px;">
+                    <div class="progress-bar" style="height: 100%; width: 0%; background-color: #007bff; border-radius: 5px; transition: width 0.3s;"></div>
+                </div>
+                <div class="progress-text" style="font-size: 0.8em; margin-top: 2px;"></div>
+            `;
+            bar = container.querySelector('.progress-bar');
+            barText = container.querySelector('.progress-text');
+        }
+
+        container.style.display = 'block';
+        if (bar) bar.style.width = `${progress}%`;
+        if (barText) barText.textContent = text;
+        
+    } else {
+        // Ocultar al finalizar la carga
+        container.style.display = 'none';
+    }
+}
+
+
+
+/* =========================================================
+   Promociones: carga y render (CORREGIDO PARA AGRUPACIÓN Y ESTILO)
+   ========================================================= */
+
+async function fetchPromos() {
+    try {
+        const { data: categorias = [], error: catError } = await supabase.from("categorias").select("id,nombre").order("nombre");
+        if (catError) throw catError;
+        
+        const container = document.getElementById('promoCategoriaFilter');
+        if (!container) return;
+        
+        // 🆕 APLICAR ESTILOS DE CONTENEDOR FLEXBOX
+        container.className = 'category-buttons-container';
+        container.innerHTML = '';
+        // ---------------------------------------------
+        
+        // 🆕 Botón para mostrar las categorías seleccionadas
+        const showButton = document.createElement('button');
+        showButton.textContent = 'Mostrar Seleccionadas'; // Título más corto
+        showButton.id = 'btnShowSelectedCategories';
+        showButton.className = 'action-button'; // Clase para estilos
+        showButton.addEventListener('click', handleShowSelected);
+        container.appendChild(showButton);
+
+        // Array de opciones (se mantiene igual)
+        const allOptions = [
+            { id: '', nombre: 'Todas' }, 
+            { id: 'sin_categoria', nombre: 'Sin Categoría' },
+            ...categorias.map(c => ({ id: String(c.id), nombre: c.nombre }))
+        ];
+
+        // Crear botones con checkbox para cada categoría
+        allOptions.forEach(c => {
+            const label = document.createElement('label');
+            label.className = 'category-button-label'; // Clase para el diseño del botón
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = c.id;
+            checkbox.className = 'category-checkbox';
+            checkbox.style.marginRight = '5px';
+            
+            // 💡 Listener de Usabilidad (Desmarcar "Todas" si se selecciona otra)
+            checkbox.addEventListener('change', (e) => {
+                const clickedValue = e.target.value;
+                const isChecked = e.target.checked;
+                const todasCheckbox = document.querySelector('.category-checkbox[value=""]');
+
+                if (clickedValue === '') {
+                    if (isChecked) {
+                        document.querySelectorAll('.category-checkbox:not([value=""])').forEach(cb => cb.checked = false);
+                    }
+                } else {
+                    if (isChecked && todasCheckbox) {
+                        todasCheckbox.checked = false;
+                    }
+                }
+            });
+
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(c.nombre));
+            container.appendChild(label);
+        });
+
+        // ... (Mensaje inicial se mantiene igual) ...
+        
+    } catch (err) {
+        console.error('fetchPromos error', err);
+    }
+}
+
+
+// ----------------------------------------------------
+// 🆕 2. Función para manejar la selección múltiple
+// ----------------------------------------------------
+
+function handleShowSelected() {
+    const selectedIds = Array.from(document.querySelectorAll('.category-checkbox:checked'))
+                            .map(cb => cb.value);
+    renderPromosByFilter(selectedIds);
+}
+
+// ----------------------------------------------------
+// 🆕 3. Función para manejar el clic individual (Mostrar solo esa)
+// ----------------------------------------------------
+
+function handleCategorySingleClick(e, allCategoryIds) {
+    const clickedCheckbox = e.target;
+    if (!clickedCheckbox.checked) return;
+
+    document.querySelectorAll('.category-checkbox').forEach(cb => {
+        if (cb !== clickedCheckbox) cb.checked = false;
+    });
+
+    renderPromosByFilter([clickedCheckbox.value]);
+}
+
+function handlePromoFilterChange() {
+    const sel = document.getElementById('promoCategoriaFilter');
+    const selectedIds = Array.from(sel.options)
+                            .filter(option => option.selected)
+                            .map(option => option.value);
+    renderPromosByFilter(selectedIds);
+}
+
+
+async function renderPromosByFilter(categoryIds = []) {
+    const container = document.getElementById('promoList');
+    if (!container) return;
+
+    container.innerHTML = '<p style="padding: 20px;">Cargando promociones...</p>';
+
+    if (categoryIds.length === 0) {
+        container.innerHTML = '<p style="padding: 20px;">Selecciona una o más categorías para ver las promociones.</p>';
+        return;
+    }
+
+    let query = supabase.from("promociones").select("*").order("id");
+    let categoryName = 'Promociones Filtradas';
+
+    const specificCategoryIds = categoryIds.filter(id => id !== 'sin_categoria' && id !== '');
+    const isSinCategoriaSelected = categoryIds.includes('sin_categoria');
+    const isTodasSelected = categoryIds.includes('');
+    let filterApplied = false;
+
+    if (categoryIds.length === 1) {
+        const id = categoryIds[0];
+        if (id === '') {
+            categoryName = 'Todas las Promociones';
+        } else if (id === 'sin_categoria') {
+            categoryName = 'Sin Categoría';
+        } else {
+            const { data: categoriaData } = await supabase.from("categorias").select("nombre").eq("id", id).maybeSingle();
+            categoryName = categoriaData?.nombre || 'Promociones Filtradas';
+        }
+    } else if (categoryIds.length > 1) {
+        categoryName = `Múltiples Categorías (${categoryIds.length} seleccionadas)`;
+    }
+
+    if (isTodasSelected) {
+        categoryName = 'Todas las Promociones';
+        filterApplied = true;
+    } else if (specificCategoryIds.length > 0) {
+        query = query.in('categoria_id', specificCategoryIds);
+        categoryName = `Múltiples Categorías (${specificCategoryIds.length})`;
+        filterApplied = true;
+    } 
+    
+    if (isSinCategoriaSelected) {
+        if (filterApplied) {
+            categoryName = "Categorías y Sin Categoría";
+        } else {
+            query = query.is('categoria_id', null);
+            categoryName = "Sin Categoría";
+            filterApplied = true;
+        }
+    }
+    
+    if (!filterApplied && specificCategoryIds.length === 0 && !isSinCategoriaSelected) {
+        container.innerHTML = '<p style="padding: 20px;">Selecciona una o más categorías para ver las promociones.</p>';
+        return;
+    }
+
+    const { data: promos = [], error: promoError } = await query;
+    if (promoError) {
+        console.error("Error al obtener promociones:", promoError);
+        container.innerHTML = 'Error al cargar las promociones.';
+        return;
+    }
+    
+    container.innerHTML = ''; 
+
+    if (promos.length === 0) {
+        container.innerHTML = `<p style="padding: 20px;">No hay promociones en la categoría: <b>${categoryName}</b></p>`;
+        return;
+    }
+    
+    // ✅ Corrección 1: agregar texto al título
+    const catTitle = document.createElement('h2');
+    catTitle.textContent = categoryName;
+    catTitle.style.marginTop = "0px"; 
+    catTitle.style.paddingBottom = "3px"; 
+    catTitle.style.marginBottom = "0"; 
+    catTitle.style.lineHeight = "3";
+    catTitle.style.borderBottom = "1px solid #333";
+    catTitle.style.fontSize = "18px";
+    container.appendChild(catTitle);
+    
+    // ✅ Corrección 3: ID único para la barra de progreso
+    const progressBarContainer = document.createElement('div');
+    progressBarContainer.id = `renderProgressBarContainer_${Date.now()}`;
+    progressBarContainer.style.marginTop = '0px'; 
+    progressBarContainer.style.marginBottom = '10px'; 
+    container.appendChild(progressBarContainer);
+
+    const promoContainer = document.createElement('div');
+    promoContainer.className = "promo-group-container"; 
+    promoContainer.style.marginTop = '0px';
+    promos.sort((a,b)=>a.id-b.id);
+    
+    const totalPromos = promos.length; 
+    let renderedCount = 0;
+    
+    for (const p of promos) {
+        // ✅ Corrección 2: obtener URL pública sin generar signedUrl por cada una
+        let imgSrc = p.imagen_url || '';
+        if (p.imagen) { 
+            try {
+                const { data: publicData } = supabase.storage.from('promo_images').getPublicUrl(p.imagen);
+                imgSrc = publicData?.publicUrl || imgSrc;
+            } catch (err) { 
+                console.warn('Error al obtener URL pública para:', p.imagen, err); 
+            }
+        } 
+
+        const imgEl = document.createElement('img');
+        imgEl.alt = p.nombre || '';
+        imgEl.src = imgSrc || '';
+        imgEl.crossOrigin = 'anonymous'; 
+        imgEl.style.width = '100%';
+        imgEl.style.height = '120px'; 
+        imgEl.style.objectFit = 'cover';
+        imgEl.style.borderRadius = '6px';
+        imgEl.style.marginBottom = '6px';
+        
+        const div = document.createElement('div');
+        div.className = 'promo-card';
+        div.style.position = 'relative'; 
+
+        div.innerHTML = `
+            <input type="checkbox" class="promo-select" data-promo-id="${p.id}" checked>
+            
+            <div style="position: absolute; top: 5px; right: 5px; z-index: 10;">
+                <button 
+                    onclick="openEditModal(${p.id})" 
+                    style="background: #007bff; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 10px; transition: background 0.3s;"
+                    onmouseover="this.style.background='#0056b3'"
+                    onmouseout="this.style.background='#007bff'"
+                >
+                    Editar ✏️
+                </button>
+            </div>
+            
+            <b style="text-align:center;">${safeText(p.nombre || '')}</b>
+            <div style="text-align:center;margin-top:4px;">
+                ${p.precio_anterior && Number(p.precio_anterior) > Number(p.precio) 
+                    ? `<del style="color:#888;">$${Number(p.precio_anterior).toFixed(2)}</del> <span style="color:red;font-weight:bold;">$${Number(p.precio).toFixed(2)}</span>` 
+                    : `<span style="font-weight:bold;">$${Number(p.precio).toFixed(2)}</span>`}
+            </div>
+            
+            <div style="text-align:center; margin-top: 4px; font-size: 0.9em; color: ${p.stock <= 5 ? 'red' : '#333'};">
+                Stock: <b>${p.stock !== null && p.stock !== undefined ? p.stock : 'N/A'}</b>
+            </div>
+        `;
+
+        if (imgSrc) div.insertBefore(imgEl, div.querySelector('b')); 
+
+        promoContainer.appendChild(div);
+        
+        renderedCount++;
+        const progress = Math.round((renderedCount / totalPromos) * 100);
+        updateProgressBar(progressBarContainer.id, progress, `Cargando Promociones: ${renderedCount} de ${totalPromos}`, true);
+    }
+    
+    container.appendChild(promoContainer);
+    updateProgressBar(progressBarContainer.id, 100, `Carga completa (${totalPromos} promociones).`, false);
+}
+
+fetchPromos();
+
+
+
+/* =========================================================
+   Exportar promos a PDF (CORREGIDO: Consulta Supabase)
+   ========================================================= */
+
+async function exportSelectedPromos() {
+    try {
+        // ... (1️⃣ Obtener IDs seleccionados, 2️⃣ Traer datos completos de Supabase, 3️⃣ Categorías, 4️⃣ Agrupar por categoría - ESTOS PASOS SE MANTIENEN IGUAL) ...
+
+        // 1️⃣ Obtener IDs seleccionados
+        const selectedIds = Array.from(document.querySelectorAll('.promo-select:checked'))
+            .map(cb => parseInt(cb.dataset.promoId, 10))
+            .filter(id => !isNaN(id));
+
+        if (!selectedIds.length) return alert('Seleccione al menos un producto.');
+
+        // 2️⃣ Traer datos completos de Supabase
+        const { data: allPromos, error: promoError } = await supabase
+            .from('promociones')
+            .select('*')
+            .in('id', selectedIds);
+
+        if (promoError) throw promoError;
+
+        const selectedPromos = selectedIds
+            .map(id => allPromos.find(p => p.id === id))
+            .filter(Boolean);
+
+        if (!selectedPromos.length) return alert('No se encontraron promociones.');
+
+        // 3️⃣ Categorías
+        const { data: allCategories = [] } = await supabase.from('categorias').select('id, nombre');
+        const getCategoryName = (id) => {
+            if (id === null) return "Sin Categoría";
+            const cat = allCategories.find(c => c.id === id);
+            return cat ? cat.nombre : "Categoría Desconocida";
+        };
+
+        // 4️⃣ Agrupar por categoría
+        const groupedPromos = selectedPromos.reduce((acc, promo) => {
+            const catId = promo.categoria_id || null;
+            if (!acc[catId]) acc[catId] = { name: getCategoryName(catId), promos: [] };
+            acc[catId].promos.push(promo);
+            return acc;
+        }, {});
+
+        let logoImgData = null; 
+        const LOGO_PATH = 'logodistribuidora.png'; // 🌟 RUTA DE LOGO 🌟
+
+        try {
+            const { data: logoSignedData } = await supabase.storage
+    .from('promo_images')  // ✅ bucket correcto
+    .createSignedUrl('logodistribuidora.png', 3600);
+                
+            if (logoSignedData?.signedUrl) {
+                // Cargar y convertir el logo a Base64 para jsPDF
+                const response = await fetch(logoSignedData.signedUrl);
+                const blob = await response.blob();
+                
+                logoImgData = await new Promise(resolve => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.readAsDataURL(blob);
+                });
+            }
+        } catch (err) {
+            console.warn('Error al cargar el logo de la empresa:', err);
+        }
+
+
+        // 5️⃣ Config PDF
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'pt', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const marginTop = 60;
+        const marginBottom = 60;
+        const marginSides = 30;
+        const spacingX = 15;
+        const spacingY = 15;
+        const cols = 2;
+        const rows = 4;
+        
+        // El cálculo de la altura de la tarjeta debe usar el espacio real entre márgenes
+        const totalUsableHeight = pageHeight - marginTop - marginBottom; 
+        const totalSpacingY = spacingY * (rows - 1);
+        const cardHeight = Math.floor((totalUsableHeight - totalSpacingY) / rows);
+        const usableContentWidth = pageWidth - marginSides * 2; // El ancho usable sin márgenes
+        const cardWidth = (usableContentWidth - spacingX * (cols - 1)) / cols;
+        
+        let x = marginSides;
+        let y = marginTop;
+        let count = 0;
+        // let globalPromoIndex = 0; // Ya no es necesario si solo se usa 'count' de manera local
+
+        const TITLE_HEIGHT = 25; // Altura estimada para el título de categoría + espacio
+        const LOGO_HEIGHT = 60; 
+        const LOGO_WIDTH = 200;
+	const LOGO_VERTICAL_OFFSET = 10;
+        const TITLE_LOGO_AREA_HEIGHT = Math.max(TITLE_HEIGHT, LOGO_HEIGHT) + 5; // Asegurar espacio para ambos
+
+        // 6️⃣ Recorrer categorías
+        let isFirstCategory = true;
+        
+        for (const catId in groupedPromos) {
+            const categoryData = groupedPromos[catId];
+
+            // 🌟 LÓGICA DE POSICIONAMIENTO DE CATEGORÍA 🌟
+
+            if (!isFirstCategory) {
+                // 1. Ajustar 'y' después de la categoría anterior
+                // Si la última fila de la categoría anterior está incompleta
+                const itemsInLastRow = categoryData.promos.length % cols; 
+                if (itemsInLastRow !== 0) {
+                     // El 'y' finaliza en la posición de la última tarjeta dibujada. 
+                     // Si no completó la fila, ya avanzó a la siguiente.
+                } else {
+                    // Si la fila estaba completa, 'y' ya se actualizó en el ciclo interno a la posición de la siguiente fila.
+                }
+                
+                // Forzamos el salto a la posición vertical del siguiente título
+                y += 20; // Pequeño espacio extra antes del nuevo título
+            }
+            
+            // 2. Chequeo de salto de página antes de dibujar el título.
+            // Si el título no cabe o no deja espacio para al menos 1 tarjeta: Salto de página.
+            if (y + TITLE_LOGO_AREA_HEIGHT + cardHeight > pageHeight - marginBottom) {
+                pdf.addPage();
+                y = marginTop;
+            }
+            
+            // 3. Dibujar Título de Categoría
+            pdf.setFontSize(16);
+            pdf.setFont('helvetica', 'bold'); // Opcional: negrita para el título
+            pdf.text(categoryData.name, marginSides, y);
+            pdf.setFont('helvetica', 'normal');
+
+            // 4. Dibujar el Logo (margen derecho)
+            if (logoImgData) {
+                const logoX = pageWidth - marginSides - LOGO_WIDTH;
+                // Posicionar el logo para que su parte inferior esté justo encima de las tarjetas.
+                const logoY = y - LOGO_HEIGHT + (TITLE_HEIGHT / 2) + LOGO_VERTICAL_OFFSET;
+                
+                pdf.addImage(
+                    logoImgData, 
+                    'PNG', 
+                    logoX, 
+                    logoY, 
+                    LOGO_WIDTH, 
+                    LOGO_HEIGHT
+                );
+            }
+
+            // 5. Ajustar 'y' para el *contenido* de las tarjetas de la nueva categoría
+            y += TITLE_LOGO_AREA_HEIGHT; // Baja 'y' para el inicio de las tarjetas
+            x = marginSides;
+            count = 0; // Reiniciar contador de tarjetas para la posición de la categoría
+            
+            isFirstCategory = false; // Ya no es la primera categoría
+
+            // 🌟 FIN LÓGICA DE POSICIONAMIENTO DE CATEGORÍA 🌟
+            
+            for (const promo of categoryData.promos) {
+                // ... (El bloque para generar la tarjeta con html2canvas se mantiene igual) ...
+                
+                const div = document.createElement('div');
+                div.style.width = `${cardWidth}px`;
+                div.style.height = `${cardHeight}px`;
+                div.style.border = '1px solid #ddd';
+                div.style.borderRadius = '6px';
+                div.style.padding = '4px';
+                div.style.boxSizing = 'border-box';
+                div.style.textAlign = 'center';
+                div.style.display = 'flex';
+                div.style.flexDirection = 'column';
+                div.style.justifyContent = 'flex-start';
+                div.style.background = '#fff';
+                div.style.overflow = 'hidden';
+
+                // Imagen cuadrada (ajustes de la respuesta anterior)
+                const img = document.createElement('img');
+                img.style.width = '40%';
+                img.style.height = '60%'; 
+                img.style.objectFit = 'cover';
+                img.style.borderRadius = '6px';
+                img.style.display = 'block';
+                img.style.margin = '4px auto 0 auto';
+                img.crossOrigin = 'anonymous';
+		img.style.cursor = "pointer";
+		img.onclick = () => mostrarImagenPromo(promo.imagen_url);
+                let imgSrc = promo.imagen_url || '';
+                if (promo.imagen) {
+                    try {
+                        const { data: sd } = await supabase.storage.from('promo_images').createSignedUrl(promo.imagen, 3600);
+                        imgSrc = sd?.signedUrl || imgSrc;
+                    } catch (err) { console.warn('signedUrl in export', err); }
+                }
+                img.src = imgSrc;
+                div.appendChild(img);
+
+                // Nombre
+                const nameEl = document.createElement('div');
+                // Nota: La función safeText() no está definida, se asume que existe o se usa el nombre directo.
+                nameEl.innerHTML = `<b>${promo.nombre}</b>`; 
+                nameEl.style.fontSize = '9pt';
+                nameEl.style.marginTop = '4px';
+                nameEl.style.height = 'auto';
+                nameEl.style.flex = '0';
+                div.appendChild(nameEl);
+
+                // Precio
+                const priceEl = document.createElement('div');
+                priceEl.innerHTML = `$${promo.precio} ${promo.precio_anterior ? `<span style="text-decoration:line-through;color:#888;">$${promo.precio_anterior}</span>` : ''}`;
+                priceEl.style.fontSize = '13pt';
+                priceEl.style.marginTop = '2px';
+                priceEl.style.flex = '0';
+                div.appendChild(priceEl);
+
+                document.body.appendChild(div);
+
+                // Esperar carga imagen
+                if (imgSrc) {
+                    await new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
+                }
+
+                // html2canvas
+                const canvas = await html2canvas(div, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+                const imgData = canvas.toDataURL('image/png');
+                
+                // Añadir imagen al PDF
+                pdf.addImage(imgData, 'PNG', x, y, cardWidth, cardHeight);
+                document.body.removeChild(div);
+                
+                // 🌟 LÓGICA DE AVANCE DE POSICIÓN 🌟
+                
+                count++; // Contador de tarjetas en la página (para las coordenadas)
+                
+                const isEndOfRow = count % cols === 0;
+                
+                if (isEndOfRow) {
+                    // La fila está completa, chequeamos si la SIGUIENTE fila cabe
+                    if (y + cardHeight + spacingY + cardHeight > pageHeight - marginBottom) {
+                        // Salto de página
+                        pdf.addPage();
+                        x = marginSides;
+                        y = marginTop;
+                        count = 0; // Reiniciamos el contador de la página
+                    } else {
+                        // Siguiente fila en la misma página
+                        x = marginSides;
+                        y += cardHeight + spacingY;
+                    }
+                } else {
+                    // La fila NO está completa, solo avanza 'x'.
+                    x += cardWidth + spacingX;
+                }
+                
+                // El contador que estaba aquí (count % (cols * rows)) ya es redundante
+                // ya que la lógica de salto de página está integrada en el 'if (isEndOfRow)'
+                // al chequear si la siguiente tarjeta cabrá.
+            }
+        }
+
+        pdf.save('Promociones_Catalogo.pdf');
+
+    } catch (err) {
+        console.error('Error al exportar promociones:', err);
+        alert('Error al exportar promociones: ' + err.message);
+    }
+}
+
+
+document.getElementById('exportPromoPDF').addEventListener('click', exportSelectedPromos);
+
+
+
+
+/* =========================================================
+   PEDIDOS: Lógica de Persistencia y Control de Stock (CORREGIDO)
+   ========================================================= */
+
+// ==================== FUNCIONES DE CONTROL DE CANTIDAD ====================
+
+// Genera el HTML para el control de cantidad con botones.
+function renderQuantityControls(id, qty, price, stock) {
+    return `
+      <div style="display:flex;align-items:center;width:100px;">
+        <button type="button" class="qty-btn" data-action="minus" data-id="${id}" style="background:#ddd;border:none;padding:5px 8px;cursor:pointer;border-radius:5px 0 0 5px;font-weight:bold;">➖</button>
+        <input type="number" min="0" max="${stock}" value="${qty}" id="prod_${id}" data-price="${price}" data-stock-max="${stock}" style="width:40px;text-align:center;border-left:none;border-right:none;" oninput="updateSubtotal(${id}, ${price}, ${stock})">
+        <button type="button" class="qty-btn" data-action="plus" data-id="${id}" style="background:#ddd;border:none;padding:5px 8px;cursor:pointer;border-radius:0 5px 5px 0;font-weight:bold;">➕</button>
+      </div>
+    `;
+}
+
+// Agrega los event listeners a los botones de + y -
+function addQuantityControlListeners() {
+    // Es mejor remover y re-agregar listeners para asegurar que solo haya uno por botón
+    document.querySelectorAll('.qty-btn').forEach(btn => {
+        btn.removeEventListener('click', handleQuantityChange);
+    });
+    
+    document.querySelectorAll('.qty-btn').forEach(btn => {
+        btn.addEventListener('click', handleQuantityChange);
+    });
+}
+
+function handleQuantityChange() {
+    const action = this.getAttribute('data-action');
+    const id = parseInt(this.getAttribute('data-id'), 10);
+    const input = document.getElementById(`prod_${id}`);
+    
+    if (!input) return;
+
+    // Obtenemos los datos necesarios desde el input
+    const price = parseFloat(input.getAttribute('data-price')) || 0;
+    const stock = parseInt(input.getAttribute('data-stock-max'), 10) || 0;
+    let currentQty = parseInt(input.value, 10) || 0;
+
+    if (action === 'plus') {
+        currentQty = Math.min(stock, currentQty + 1);
+    } else if (action === 'minus') {
+        currentQty = Math.max(0, currentQty - 1);
+    }
+
+    input.value = currentQty;
+    updateSubtotal(id, price, stock);
+}
+
+
+function getSelectedQty(id){ const it = selectedProducts.find(x => x.id === id); return it ? it.cantidad : 0; }
+
+/**
+ * Función que actualiza subtotal, aplica stock y recalcula el total general.
+ */
+function updateSubtotal(id, price, stock){
+    const input = document.getElementById(`prod_${id}`);
+    if(!input) return;
+    
+    let qty = parseInt(input.value,10) || 0;
+    
+    if(qty < 0) qty = 0;
+    if(stock !== undefined && qty > stock) qty = stock;
+    
+    input.value = qty; 
+    
+    const sub = document.getElementById(`sub_${id}`);
+    if(sub) sub.textContent = `$${(qty*price).toFixed(2)}`;
+    
+    const tot = document.getElementById('totalPedido');
+    if(tot) tot.textContent = `$${calculateTotal().toFixed(2)}`;
+}
+
+function calculateTotal(){
+    let total = 0;
+    const inputs = document.querySelectorAll('#modalInner input[type=number][data-price]');
+    inputs.forEach(inp=>{
+        const qty = parseInt(inp.value,10) || 0;
+        const price = parseFloat(inp.getAttribute('data-price')) || 0;
+        total += qty * price;
+    });
+    return total;
+}
+
+/**
+ * FUNCIÓN CRÍTICA PARA LA PERSISTENCIA: Actualiza la variable global selectedProducts 
+ * con los valores actuales de los inputs visibles en el modal.
+ */
+function updateSelectedProductsFromModal() {
+    const inputs = document.querySelectorAll('#modalInner input[type=number][data-price]');
+    
+    inputs.forEach(inp => {
+        const prodId = parseInt(inp.id.replace('prod_',''), 10);
+        const qty = parseInt(inp.value, 10) || 0;
+        const price = parseFloat(inp.getAttribute('data-price')) || 0;
+        
+        const existingIndex = selectedProducts.findIndex(p => p.id === prodId);
+
+        if (qty > 0) {
+            if (existingIndex !== -1) {
+                selectedProducts[existingIndex].cantidad = qty;
+            } else {
+                // Producto nuevo: obtener nombre del DOM
+                const row = inp.closest('tr');
+                const nombre = row && row.cells.length > 0 ? row.cells[0].textContent : `Producto ${prodId}`; 
+                selectedProducts.push({ id: prodId, nombre: nombre, cantidad: qty, precio: price });
+            }
+        } else {
+            // Cantidad 0: eliminar de la selección si ya existía
+            if (existingIndex !== -1) {
+                selectedProducts.splice(existingIndex, 1);
+            }
+        }
+    });
+}
+
+
+function confirmProducts(){
+    // ✅ Paso de persistencia final antes de cerrar el modal
+    updateSelectedProductsFromModal(); 
+    closeModal(); 
+    renderSelectedProducts();
+}
+
+
+/* ========== MODAL DE SELECCIÓN DE PRODUCTOS ========== */
+document.getElementById('selectProductsBtn').addEventListener('click', async ()=>{
+    const { data: categoriasData } = await supabase.from('categorias').select('*').order('id');
+    const { data: promos } = await supabase.from('promociones').select('*').order('id'); // Consulta directa
+    
+    function renderFilteredPromos(categoryId = "") {
+    // Guarda el estado actual antes de redibujar
+    const modalInner = document.getElementById('modalInner');
+    if (modalInner.querySelector('table')) {
+        updateSelectedProductsFromModal();
+    }
+
+    let filteredPromos = (!categoryId)
+        ? promos
+        : promos.filter(p => String(p.categoria_id) === String(categoryId));
+
+    let html = `
+        <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            background:#f9fafb;
+            padding:16px 22px;
+            border-bottom:1px solid #ddd;
+            border-radius:12px 12px 0 0;
+        ">
+            <button id="closeModalBtn" 
+                style="
+                    background:none;
+                    border:none;
+                    color:#555;
+                    font-size:18px;
+                    font-weight:bold;
+                    cursor:pointer;
+                    transition:0.2s;
+                "
+                onmouseover="this.style.color='#000'"
+                onmouseout="this.style.color='#555'"
+            >
+                ❌ Cerrar
+            </button>
+
+            <h3 style="margin:0;font-size:20px;font-weight:600;color:#2c3e50;text-align:center;flex:1;">
+                🛍️ Seleccionar Productos
+            </h3>
+
+            <button onclick="confirmProducts()" 
+                style="
+                    background:#3498db;
+                    color:#fff;
+                    border:none;
+                    padding:10px 22px;
+                    border-radius:8px;
+                    font-size:15px;
+                    font-weight:600;
+                    cursor:pointer;
+                    transition:0.2s;
+                "
+                onmouseover="this.style.background='#2980b9'"
+                onmouseout="this.style.background='#3498db'"
+            >
+                💾 Confirmar selección
+            </button>
+        </div>
+
+        <div style="
+            display:flex;
+            align-items:center;
+            gap:14px;
+            margin:18px 0;
+            flex-wrap:wrap;
+        ">
+            <label style="font-weight:600;color:#333;">Filtrar por categoría:</label>
+            <select id="filterCategoria" 
+                style="
+                    padding:8px 14px;
+                    border-radius:8px;
+                    border:1px solid #ccc;
+                    min-width:200px;
+                    background:#fff;
+                ">
+                <option value="">Todas</option>
+                ${categoriasData.map(c => `<option value="${c.id}">${safeText(c.nombre)}</option>`).join("")}
+            </select>
+        </div>
+
+        <div style="
+            overflow-y:auto;
+            max-height:70vh;
+            border:1px solid #ddd;
+            border-radius:10px;
+            background:#fff;
+        ">
+            <table style="
+                width:100%;
+                border-collapse:collapse;
+                font-size:15px;
+            ">
+                <thead style="background:#ecf0f1;">
+                    <tr>
+                        <th style="padding:10px;text-align:left;">Producto</th>
+                        <th style="padding:10px;text-align:right;">Precio</th>
+                        <th style="padding:10px;text-align:center;">Stock</th>
+                        <th style="padding:10px;text-align:center;">Cantidad</th>
+                        <th style="padding:10px;text-align:right;">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    for (const p of filteredPromos) {
+        const qty = getSelectedQty(p.id);
+        const stockMax = p.stock ?? 0;
+        const price = Number(p.precio);
+
+        html += `
+            <tr style="border-bottom:1px solid #eee;">
+                <td style="padding:10px;">${safeText(p.nombre || p.descripcion || '')}</td>
+                <td style="padding:10px;text-align:right;">$${price.toFixed(2)}</td>
+                <td style="padding:10px;text-align:center;">${stockMax}</td>
+                <td style="padding:10px;text-align:center;">
+                    ${renderQuantityControls(p.id, qty, price, stockMax)}
+                </td>
+                <td id="sub_${p.id}" style="padding:10px;text-align:right;">
+                    $${(qty * price).toFixed(2)}
+                </td>
+            </tr>
+        `;
+    }
+
+    html += `
+                <tr style="background:#fafafa;">
+                    <td colspan="4" style="text-align:right;padding:12px 10px;font-weight:600;">Total:</td>
+                    <td id="totalPedido" style="text-align:right;padding:12px 10px;font-weight:700;color:#27ae60;">$0.00</td>
+                </tr>
+            </tbody>
+        </table>
+        </div>
+    `;
+
+    // Aplicar al modal
+    modalInner.innerHTML = html;
+    modalInner.style.maxWidth = "1100px";
+    modalInner.style.width = "95%";
+    modalInner.style.background = "#fdfdfd";
+    modalInner.style.borderRadius = "12px";
+    modalInner.style.boxShadow = "0 6px 20px rgba(0,0,0,0.15)";
+    modalInner.style.padding = "20px";
+    modalInner.style.position = "relative";
+
+    const modal = document.getElementById("modal");
+    modal.style.display = "flex";
+    modal.style.justifyContent = "center";
+    modal.style.alignItems = "center";
+    modal.style.background = "rgba(0,0,0,0.45)";
+    modal.style.zIndex = "9999";
+
+    // Filtro por categoría
+    const filterEl = document.getElementById('filterCategoria');
+    if (filterEl) {
+        filterEl.value = categoryId;
+        filterEl.addEventListener('change', function(){
+            renderFilteredPromos(this.value);
+        });
+    }
+
+    // Botón para cerrar el modal (sin confirmar)
+    const closeBtn = document.getElementById('closeModalBtn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            modal.style.display = "none";
+        });
+    }
+
+    // Listeners de cantidad y total
+    addQuantityControlListeners();
+    setTimeout(() => {
+        const tEl = document.getElementById('totalPedido');
+        if (tEl) tEl.textContent = `$${calculateTotal().toFixed(2)}`;
+    }, 40);
+}
+
+
+    renderFilteredPromos();
+});
+
+
+function renderSelectedProducts(){
+    const c = document.getElementById('selectedProductsContainer');
+    if(!selectedProducts.length){ c.innerHTML = '<span class="small-muted">No hay productos seleccionados</span>'; return; }
+    let html = `<table class="table"><thead><tr><th>Producto</th><th>Cantidad</th><th>Subtotal</th></tr></thead><tbody>`;
+    selectedProducts.forEach(p=>{
+        html += `<tr><td>${safeText(p.nombre)}</td><td>${p.cantidad}</td><td>$${(p.precio*p.cantidad).toFixed(2)}</td></tr>`;
+    });
+    const total = selectedProducts.reduce((s,p)=>s + p.precio * p.cantidad, 0);
+    html += `<tr><td colspan="2" style="text-align:right"><strong>Total:</strong></td><td>$${total.toFixed(2)}</td></tr></tbody></table>`;
+    c.innerHTML = html;
+}
+async function getPromoById(id){
+    const { data } = await supabase.from('promociones').select('*').eq('id', id).single();
+    return data;
+}
+
+/* ================== AGREGAR PEDIDO ================== */
+document.getElementById('addOrderBtn').addEventListener('click', async ()=>{
+    const cliente = document.getElementById('pedidoCliente').value.trim();
+    const localidad_id = document.getElementById('pedidoLocalidad').value || null;
+    if(!cliente || selectedProducts.length === 0) return alert('Complete cliente y seleccione productos');
+    
+    const promosActuales = await Promise.all(selectedProducts.map(p => getPromoById(p.id)));
+    for (let i = 0; i < selectedProducts.length; i++) {
+        if (selectedProducts[i].cantidad > (promosActuales[i].stock || 0)) {
+            return alert(`Stock insuficiente para ${selectedProducts[i].nombre} (disponible: ${promosActuales[i].stock})`);
+        }
+    }
+    
+    // SOLO DESCONTAR STOCK UNA VEZ
+    await Promise.all(selectedProducts.map((p, i) =>
+        supabase.from('promociones').update({ stock: (promosActuales[i].stock || 0) - p.cantidad }).eq('id', p.id)
+    ));
+    
+    const productosPayload = selectedProducts.map(p => ({ id: p.id, nombre: p.nombre, cantidad: p.cantidad, precio: p.precio }));
+    const total = productosPayload.reduce((s,x)=>s + x.precio * x.cantidad, 0);
+    const { error } = await supabase.from('pedidos').insert([{ cliente, localidad_id, dni, productos: productosPayload, total }]);
+    
+    if(error) return alert(error.message);
+    
+    document.getElementById('pedidoForm').reset();
+    selectedProducts = []; renderSelectedProducts();
+    await fetchOrders();
+    await fetchPromos(); // Cambiado a fetchPromos (tu función)
+    showToast('Pedido agregado');
+});
+
+/* ========== OBTENER LOCALIDAD ========== */
+async function getLocalidadNombre(id) {
+    if (!id) return "";
+    const { data } = await supabase.from('localidades').select('*').order('id');
+    return (data && data.nombre) ? data.nombre : "";
+}
+
+
+
+
+/* ================== LISTADO DE PEDIDOS OPTIMIZADO CON ESTADO ================== */
+let isFetchingOrders = false;
+let pedidoSeleccionado = null;
+let pagosActuales = [];
+
+async function fetchOrders() {
+  if (isFetchingOrders) return;
+  isFetchingOrders = true;
+
+  try {
+    const container = document.getElementById("pedidoList");
+    container.innerHTML = "";
+
+    // 1️⃣ Obtener pedidos
+    const { data: pedidos, error: pedidosError } = await supabase
+      .from("pedidos")
+      .select("*")
+      .order("id", { ascending: true });
+
+    if (pedidosError) throw pedidosError;
+    if (!pedidos?.length) {
+      container.innerHTML = `<p style="color:#888;">No hay pedidos cargados.</p>`;
+      return;
+    }
+
+    // 2️⃣ Cargar localidades
+    const { data: localidadesData, error: locError } = await supabase
+      .from("localidades")
+      .select("id, nombre");
+
+    if (locError) throw locError;
+    const localidadMap = {};
+    localidadesData.forEach(l => (localidadMap[l.id] = l.nombre));
+
+    // 3️⃣ Agrupar pedidos por localidad
+    const pedidosPorLocalidad = {};
+    pedidos.forEach(p => {
+      const nombreLocalidad = p.localidad_id
+        ? localidadMap[p.localidad_id] || "Sin Localidad"
+        : "Sin Localidad";
+      if (!p.estado) p.estado = "pendiente";
+      if (!pedidosPorLocalidad[nombreLocalidad])
+        pedidosPorLocalidad[nombreLocalidad] = [];
+      pedidosPorLocalidad[nombreLocalidad].push(p);
+    });
+
+    // 4️⃣ Ordenar las localidades
+    const localidadesOrdenadas = Object.keys(pedidosPorLocalidad).sort((a, b) =>
+      a.localeCompare(b, "es", { sensitivity: "base" })
+    );
+
+    // 5️⃣ Renderizar
+    for (const localidad of localidadesOrdenadas) {
+      const pedidosDeLocalidad = pedidosPorLocalidad[localidad];
+
+      pedidosDeLocalidad.sort((a, b) => {
+        if (a.estado !== b.estado)
+          return a.estado === "pendiente" ? -1 : 1;
+        return (a.cliente || "").localeCompare(b.cliente || "", "es", { sensitivity: "base" });
+      });
+
+      // Título
+      const titulo = document.createElement("h2");
+      titulo.textContent = `${localidad}`;
+      Object.assign(titulo.style, {
+        marginTop: "25px",
+        marginBottom: "10px",
+        padding: "8px 14px",
+        background: "#3498db",
+        color: "#fff",
+        borderRadius: "8px",
+        fontSize: "1.2em",
+        boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+      });
+      container.appendChild(titulo);
+
+      // Tarjetas
+      for (const p of pedidosDeLocalidad) {
+        const div = document.createElement("div");
+        Object.assign(div.style, {
+          display: "flex",
+          alignItems: "stretch",
+          justifyContent: "space-between",
+          padding: "18px 14px",
+          marginBottom: "14px",
+          borderRadius: "12px",
+          background: "#fff",
+          boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+          border: "1px solid #eee",
+        });
+
+        // 🧾 Info
+        const infoDiv = document.createElement("div");
+        infoDiv.style.flex = "1";
+
+        let prodHTML = '<ul style="margin:7px 0 10px 0;padding-left:22px;font-size:15px;">';
+        p.productos.forEach(pr => {
+          prodHTML += `<li>${safeText(pr.nombre)} x ${pr.cantidad} <span style="color:#3498db;">$${(pr.precio * pr.cantidad).toFixed(2)}</span></li>`;
+        });
+        prodHTML += "</ul>";
+
+        // 💰 Mostrar pagos si existen
+        let pagosHTML = "";
+        if (p.pagos && p.pagos.length > 0) {
+          pagosHTML = `
+            <div style="margin-top:8px;background:#f8f9fa;padding:8px;border-radius:6px;">
+              <b>💳 Pagos:</b><br>
+              ${p.pagos
+                .map(pg => `- ${pg.metodo}${pg.destinatario ? ` (${pg.destinatario})` : ""}: $${pg.monto.toFixed(2)}`)
+                .join("<br>")}
+              ${p.saldo_pendiente > 0
+                ? `<br><b style="color:#e74c3c;">Saldo pendiente: $${p.saldo_pendiente.toFixed(2)}</b>`
+                : ""}
+            </div>
+          `;
+        }
+
+        infoDiv.innerHTML = `
+          <strong>${safeText(p.cliente)}</strong>
+          <div style="color:#888;margin-bottom:2px;">Localidad: ${safeText(localidad)}</div>
+          ${prodHTML}
+          <div style="margin-top:8px;font-weight:bold;">Total: <span style="color:#ff4d4f;">$${Number(p.total).toFixed(2)}</span></div>
+          ${pagosHTML}
+        `;
+
+        // 🎛️ Botones
+        const actionsDiv = document.createElement("div");
+        Object.assign(actionsDiv.style, {
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+          alignItems: "flex-end",
+        });
+
+        const pdfBtn = document.createElement("button");
+        pdfBtn.textContent = "📄 Exportar PDF";
+        Object.assign(pdfBtn.style, {
+          background: "#2ecc71",
+          color: "#fff",
+          border: "none",
+          padding: "8px 18px",
+          borderRadius: "7px",
+          fontWeight: "bold",
+          cursor: "pointer",
+        });
+        pdfBtn.onclick = () => exportPedidoPDF({ ...p, localidad_nombre: localidad });
+
+        const editBtn = document.createElement("button");
+        editBtn.textContent = "✏️ Editar";
+        Object.assign(editBtn.style, {
+          background: "#3498db",
+          color: "#fff",
+          border: "none",
+          padding: "8px 18px",
+          borderRadius: "7px",
+          fontWeight: "bold",
+          cursor: "pointer",
+        });
+        editBtn.onclick = () => editOrderModal(p);
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.textContent = "🗑️ Eliminar";
+        Object.assign(deleteBtn.style, {
+          background: "#ff4d4f",
+          color: "#fff",
+          border: "none",
+          padding: "8px 18px",
+          borderRadius: "7px",
+          fontWeight: "bold",
+          cursor: "pointer",
+        });
+        deleteBtn.onclick = () => deleteOrder(p.id);
+
+        // 💰 Botón Medios de Pago
+        const pagoBtn = document.createElement("button");
+        pagoBtn.textContent = "💰 Medios de Pago";
+        Object.assign(pagoBtn.style, {
+          background: "#27ae60",
+          color: "#fff",
+          border: "none",
+          padding: "8px 18px",
+          borderRadius: "7px",
+          fontWeight: "bold",
+          cursor: "pointer",
+          width: "300px",
+          textAlign: "center",
+        });
+        pagoBtn.onclick = () => abrirModalPago(p);
+
+        // 🔹 Botón Estado
+        const estadoBtn = document.createElement("button");
+        estadoBtn.textContent = p.estado === "entregado" ? "Entregado" : "Pendiente";
+        Object.assign(estadoBtn.style, {
+          background: p.estado === "entregado" ? "#ff4d4f" : "#2ecc71",
+          color: "#fff",
+          border: "none",
+          padding: "8px 18px",
+          borderRadius: "7px",
+          fontWeight: "bold",
+          cursor: "pointer",
+          width: "300px",
+          textAlign: "center",
+          marginTop: "10px",
+        });
+        estadoBtn.onclick = async () => {
+          p.estado = p.estado === "entregado" ? "pendiente" : "entregado";
+          const { error } = await supabase.from("pedidos").update({ estado: p.estado }).eq("id", p.id);
+          if (error) return alert(error.message);
+          fetchOrders();
+        };
+
+        actionsDiv.append(pdfBtn, editBtn, deleteBtn, pagoBtn, estadoBtn);
+        div.append(infoDiv, actionsDiv);
+        container.appendChild(div);
+      }
+    }
+  } catch (err) {
+    console.error(err);
+    showToast("Error al cargar pedidos");
+  } finally {
+    isFetchingOrders = false;
+  }
+}
+
+
+
+function abrirModalPago(pedido) {
+  pedidoSeleccionado = pedido;
+  pagosActuales = pedido.pagos || [];
+
+  // Mostrar datos del pedido
+  document.getElementById("totalPedido").textContent = Number(pedido.total || 0).toFixed(2);
+  document.getElementById("estadoPedido").textContent = pedido.estado || "Pendiente";
+
+  // Limpiar lista de pagos
+  const lista = document.getElementById("listaPagos");
+  lista.innerHTML = "";
+
+  // Crear filas existentes o una vacía
+  if (pagosActuales.length > 0) {
+    pagosActuales.forEach((p, i) => crearFilaPago(i, p.metodo, p.monto, p.destinatario));
+  } else {
+    crearFilaPago(0);
+  }
+
+  // Recalcular totales
+  recalcularPagos();
+
+  // Mostrar modal
+  document.getElementById("modalPago").style.display = "block";
+}
+
+
+function recalcularPagos() {
+  const lista = document.getElementById("listaPagos");
+  let totalPagos = 0;
+
+  lista.querySelectorAll(".fila-pago").forEach(fila => {
+    const montoInput = fila.querySelector('input[placeholder="Monto"]');
+    const monto = montoInput ? parseFloat(montoInput.value) || 0 : 0;
+    totalPagos += monto;
+  });
+
+  document.getElementById("totalPagado").textContent = totalPagos.toFixed(2);
+
+  const totalPedido = Number(pedidoSeleccionado.total || 0);
+  const saldoPendiente = Math.max(0, totalPedido - totalPagos);
+  document.getElementById("saldoPendiente").textContent = saldoPendiente.toFixed(2);
+}
+
+
+
+function cerrarModalPago() {
+  const modal = document.getElementById("modalPago");
+  if (modal) {
+    modal.style.display = "none";
+  }
+}
+
+
+
+function crearFilaPago(index, metodo = '', monto = 0, destinatario = '') {
+  const lista = document.getElementById("listaPagos");
+
+  const fila = document.createElement("div");
+  fila.className = "fila-pago";
+  fila.style.display = "flex";
+  fila.style.gap = "10px";
+  fila.style.marginBottom = "8px";
+  fila.style.alignItems = "center";
+
+  // Select método de pago
+  const selectMetodo = document.createElement("select");
+  const opciones = ["Transferencia", "Efectivo"];
+  opciones.forEach(op => {
+    const option = document.createElement("option");
+    option.value = op;
+    option.textContent = op;
+    if (op === metodo) option.selected = true;
+    selectMetodo.appendChild(option);
+  });
+
+  // Input monto
+  const inputMonto = document.createElement("input");
+  inputMonto.type = "number";
+  inputMonto.placeholder = "Monto";
+  inputMonto.value = monto;
+  inputMonto.min = 0;
+  inputMonto.step = "0.01";
+  inputMonto.oninput = recalcularPagos; // recalcular al cambiar
+
+  // Input destinatario
+  const inputDest = document.createElement("input");
+  inputDest.type = "text";
+  inputDest.placeholder = "Destinatario";
+  inputDest.value = destinatario;
+
+  // Botón eliminar
+  const btnEliminar = document.createElement("button");
+  btnEliminar.textContent = "❌";
+  btnEliminar.onclick = () => {
+    lista.removeChild(fila);
+    recalcularPagos();
+  };
+
+  fila.append(selectMetodo, inputMonto, inputDest, btnEliminar);
+  lista.appendChild(fila);
+}
+
+
+
+async function guardarPagosPedido() {
+  if (!pedidoSeleccionado) return alert("No hay pedido seleccionado");
+
+  const lista = document.getElementById("listaPagos");
+  const pagos = [];
+
+  lista.querySelectorAll(".fila-pago").forEach(fila => {
+    const metodoSelect = fila.querySelector("select");
+    const metodo = metodoSelect ? metodoSelect.value : "";
+
+    const montoInput = fila.querySelector('input[placeholder="Monto"]');
+    const monto = montoInput ? parseFloat(montoInput.value) || 0 : 0;
+
+    const destInput = fila.querySelector('input[placeholder="Destinatario"]');
+    const destinatario = destInput ? destInput.value : "";
+
+    if (metodo && monto > 0) {
+      pagos.push({ metodo, monto, destinatario });
+    }
+  });
+
+  const totalPagos = pagos.reduce((sum, p) => sum + p.monto, 0);
+  const saldo_pendiente = Math.max(0, pedidoSeleccionado.total - totalPagos);
+
+  // Guardar en Supabase
+  const { error } = await supabase
+    .from("pedidos")
+    .update({ pagos, saldo_pendiente })
+    .eq("id", pedidoSeleccionado.id);
+
+  if (error) return alert("Error al guardar pagos: " + error.message);
+
+  // Cerrar modal y refrescar
+  cerrarModalPago();
+  fetchOrders();
+  alert("Pagos guardados correctamente");
+}
+
+
+
+
+
+
+/* ========== MODAL DE EDICIÓN DE PEDIDO CON VALIDACIÓN MANUAL ========== */
+async function editOrderModal(pedido) {
+    const { data: localidades } = await supabase.from('localidades').select('*').order('id');
+    const { data: productosDB } = await supabase.from('promociones').select('*').order('id');
+    const { data: categorias } = await supabase.from('categorias').select('*').order('id');
+
+    // Clonamos los productos del pedido para edición y garantizamos campo descuento
+    let productosPedido = (pedido.productos || []).map(pr => ({ ...pr, descuento: pr.descuento || 0 }));
+    // Variable persistente dentro del modal para el descuento general
+    let descuentoGeneral = typeof pedido.descuento_general !== 'undefined' ? pedido.descuento_general : 0;
+
+    function renderModal(stockMsg = "") {
+        document.getElementById("modalInner").style.maxWidth = "1300px";
+        document.getElementById("modalInner").style.width = "98%";
+
+        // Lista de productos en el pedido
+        let listaHTML = `<ul id="productosPedidoList" style="margin-bottom:8px;">`;
+        productosPedido.forEach((pr, idx) => {
+            const prodInfo = productosDB.find(pdb => pdb.id === pr.id);
+            const stockActualDB = prodInfo ? (prodInfo.stock ?? 0) : 0;
+            const stockOriginal = (pedido.productos || []).find(op => op.id === pr.id)?.cantidad || 0;
+            const stockBase = stockActualDB + stockOriginal;
+
+            listaHTML += `
+                <li style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:#fafafa;padding:6px 10px;border-radius:8px;">
+                    <span style="font-weight:bold;flex:1;">${safeText(pr.nombre)}</span>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <button class="qtyMinus" data-idx="${idx}" style="background:#ddd;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;">−</button>
+                        <input type="number" min="1" max="${stockBase}" value="${pr.cantidad}" data-idx="${idx}" class="editQtyInput" style="width:50px;text-align:center;">
+                        <button class="qtyPlus" data-idx="${idx}" style="background:#ddd;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;">+</button>
+                        <input type="number" min="0" max="100" value="${pr.descuento || 0}" 
+                               class="editDescuentoInput" data-idx="${idx}" style="width:50px;text-align:center;" placeholder="% Desc">
+                    </div>
+                    <span style="color:#888;">(stock: ${stockBase})</span>
+                    <span style="color:#3498db;font-weight:bold;">$${(pr.precio * pr.cantidad * (1 - (pr.descuento || 0)/100)).toFixed(2)}</span>
+                    <button type="button" class="deletePrBtn" data-idx="${idx}" style="background:#ff4d4f;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;">🗑️</button>
+                </li>
+            `;
+        });
+        listaHTML += `</ul>`;
+
+        // Calculamos total: primero descuentos por producto, luego descuento general
+        const totalSinDescuento = productosPedido.reduce((s, p) =>
+            s + p.precio * p.cantidad * (1 - (p.descuento || 0) / 100), 0
+        );
+        const totalConDescuento = totalSinDescuento * (1 - (descuentoGeneral || 0) / 100);
+
+        // Abrimos modal con todo el HTML (manteniendo estilo / estructura)
+        openModal(`
+            <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:18px;">
+                <h2 style="margin:0;font-size:1.3em;">Editar Pedido</h2>
+            </div>
+            <div style="background:#f8f8f8;border-radius:12px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,0.07);max-height:85vh;overflow-y:auto;">
+                <div style="margin-bottom:16px;">
+                    <label style="font-weight:500;display:block;margin-bottom:4px;">Cliente</label>
+                    <input type="text" id="editPedidoCliente" value="${safeText(pedido.cliente)}" placeholder="Nombre del cliente" style="width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;">
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="font-weight:500;display:block;margin-bottom:4px;">DNI</label>
+                    <input type="text" id="editPedidoDni" value="${safeText(pedido.dni || '')}" placeholder="Ingrese DNI" style="width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;">
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="font-weight:500;display:block;margin-bottom:4px;">Localidad</label>
+                    <select id="editPedidoLocalidad" style="width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;">
+                        <option value="">Seleccione localidad</option>
+                        ${localidades.map(l => `<option value="${l.id}" ${l.id === pedido.localidad_id ? 'selected' : ''}>${safeText(l.nombre)}</option>`).join('')}
+                    </select>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="font-weight:500;display:block;margin-bottom:4px;">Productos</label>
+                    <button type="button" id="openProductSelector" style="background:#eee;color:#333;border:none;padding:10px 14px;border-radius:6px;font-size:16px;cursor:pointer;margin-bottom:10px;">
+                        ➕ Agregar productos
+                    </button>
+                    ${listaHTML}
+                    <div style="margin-bottom:16px;">
+                        <label style="font-weight:500;display:block;margin-bottom:4px;">Descuento general (%)</label>
+                        <input type="number" id="editDescuentoGeneral" value="${descuentoGeneral}" min="0" max="100" step="0.01"
+                               style="width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;">
+                    </div>
+                    <div style="margin-top:8px;font-weight:bold;">Total: <span id="pedidoTotal" style="color:#ff4d4f;">$${totalConDescuento.toFixed(2)}</span></div>
+                    ${stockMsg ? `<div style="color:#ff4d4f;font-weight:bold;margin-top:10px;">${stockMsg}</div>` : ""}
+                </div>
+                <button id="saveEditPedidoBtn" style="margin-top:10px;background:#3498db;color:#fff;border:none;padding:12px 20px;border-radius:7px;font-size:16px;font-weight:bold;cursor:pointer;">
+                    💾 Guardar cambios
+                </button>
+            </div>
+        `);
+
+        // ---- IMPORTANT: don't re-run renderModal from this input; only update total ----
+        const descuentoInput = document.getElementById("editDescuentoGeneral");
+        if (descuentoInput) {
+            descuentoInput.oninput = (e) => {
+                let val = parseFloat(e.target.value);
+                if (isNaN(val)) val = 0;
+                if (val < 0) val = 0;
+                if (val > 100) val = 100;
+                descuentoGeneral = val;
+
+                // Recalcular total sin re-renderizar todo el modal
+                const totalSinDesc = productosPedido.reduce((s, p) =>
+                    s + p.precio * p.cantidad * (1 - (p.descuento || 0) / 100), 0
+                );
+                const totalConDesc = totalSinDesc * (1 - descuentoGeneral / 100);
+                const totalSpan = document.getElementById("pedidoTotal");
+                if (totalSpan) totalSpan.textContent = `$${totalConDesc.toFixed(2)}`;
+            };
+        }
+
+        // Abrir submodal para agregar productos
+        const openSelectorBtn = document.getElementById("openProductSelector");
+        if (openSelectorBtn) openSelectorBtn.onclick = () => openSubModal();
+
+        // Botones + y − por producto
+        document.querySelectorAll('.qtyPlus').forEach(btn => {
+            btn.onclick = () => {
+                const idx = parseInt(btn.dataset.idx, 10);
+                const prodInfo = productosDB.find(pdb => pdb.id === productosPedido[idx].id);
+                const stockDB = prodInfo ? (prodInfo.stock ?? 0) : 0;
+                const stockOriginal = (pedido.productos || []).find(op => op.id === productosPedido[idx].id)?.cantidad || 0;
+                const stockBase = stockDB + stockOriginal;
+                if (productosPedido[idx].cantidad < stockBase) {
+                    productosPedido[idx].cantidad++;
+                    renderModal();
+                } else {
+                    renderModal(`Stock máximo para "${productosPedido[idx].nombre}" es ${stockBase}.`);
+                }
+            };
+        });
+        document.querySelectorAll('.qtyMinus').forEach(btn => {
+            btn.onclick = () => {
+                const idx = parseInt(btn.dataset.idx, 10);
+                if (productosPedido[idx].cantidad > 1) {
+                    productosPedido[idx].cantidad--;
+                    renderModal();
+                }
+            };
+        });
+        // input cantidad
+        document.querySelectorAll('.editQtyInput').forEach(input => {
+            input.onchange = () => {
+                const idx = parseInt(input.dataset.idx, 10);
+                const prodInfo = productosDB.find(pdb => pdb.id === productosPedido[idx].id);
+                const stockDB = prodInfo ? (prodInfo.stock ?? 0) : 0;
+                const stockOriginal = (pedido.productos || []).find(op => op.id === productosPedido[idx].id)?.cantidad || 0;
+                const stockBase = stockDB + stockOriginal;
+                let val = Math.max(1, parseInt(input.value, 10) || 1);
+                if (val > stockBase) val = stockBase;
+                productosPedido[idx].cantidad = val;
+                renderModal();
+            };
+        });
+        // input descuento por producto
+        document.querySelectorAll('.editDescuentoInput').forEach(input => {
+            input.onchange = () => {
+                const idx = parseInt(input.dataset.idx, 10);
+                let val = parseFloat(input.value);
+                if (isNaN(val)) val = 0;
+                if (val < 0) val = 0;
+                if (val > 100) val = 100;
+                productosPedido[idx].descuento = val;
+                renderModal();
+            };
+        });
+        // eliminar producto
+        document.querySelectorAll('.deletePrBtn').forEach(btn => {
+            btn.onclick = () => {
+                const idx = parseInt(btn.dataset.idx, 10);
+                productosPedido.splice(idx, 1);
+                renderModal();
+            };
+        });
+
+        // Guardar cambios con validación manual
+        const saveBtn = document.getElementById('saveEditPedidoBtn');
+        if (saveBtn) {
+            saveBtn.onclick = () => {
+                const cliente = document.getElementById('editPedidoCliente').value.trim();
+                const dni = document.getElementById('editPedidoDni').value.trim();
+                const localidad_id = document.getElementById('editPedidoLocalidad').value;
+
+                if (!cliente) return alert("Ingrese el nombre del cliente");
+                if (!dni) return alert("Ingrese el DNI del cliente");
+                if (!localidad_id) return alert("Seleccione la localidad");
+                if (!productosPedido.length) return alert("Agregue productos");
+
+                // Antes de llamar al save, asignamos el descuento general al pedido (persistente en la variable)
+                pedido.descuento_general = descuentoGeneral;
+
+                saveEditPedido(pedido.id, productosPedido, dni);
+            };
+        }
+    }
+
+    // Submodal de selección de productos (igual que antes)
+    async function openSubModal() {
+        let html = `
+            <div style="display:flex;flex-direction:column;gap:12px;max-height:80vh;overflow:auto;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <select id="filtroCategoria" style="flex:1;padding:8px;border-radius:6px;border:1px solid #ccc;">
+                        <option value="">Todas las categorías</option>
+                        ${categorias.map(c => `<option value="${c.id}">${safeText(c.nombre)}</option>`).join('')}
+                    </select>
+                    <input type="text" id="buscadorProducto" placeholder="Buscar producto..." style="flex:1;padding:8px;border-radius:6px;border:1px solid #ccc;">
+                </div>
+                <div id="listaProductosSubModal"></div>
+            </div>
+        `;
+        openModal(html);
+
+        const lista = document.getElementById('listaProductosSubModal');
+        function renderProductos(filtro = "", cat = "") {
+            let filtrados = productosDB.filter(p =>
+                (!cat || p.categoria_id == cat) &&
+                (p.nombre.toLowerCase().includes(filtro.toLowerCase()))
+            );
+            lista.innerHTML = filtrados.map(p => `
+                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eee;padding:6px 0;">
+                    <span>${safeText(p.nombre)} ($${p.precio}, stock: ${p.stock ?? 0})</span>
+                    <button class="addProdBtn" data-id="${p.id}" style="background:#eee;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;">Agregar</button>
+                </div>
+            `).join('');
+            document.querySelectorAll('.addProdBtn').forEach(btn => {
+                btn.onclick = () => {
+                    const prod = productosDB.find(p => p.id == btn.dataset.id);
+                    if (!productosPedido.some(pp => pp.id == prod.id)) {
+                        // mantenemos estructura original, añadimos campo descuento por defecto 0
+                        productosPedido.push({ id: prod.id, nombre: prod.nombre, cantidad: 1, precio: prod.precio, descuento: 0 });
+                        closeModal();
+                        renderModal();
+                    }
+                };
+            });
+        }
+        renderProductos();
+
+        const buscador = document.getElementById('buscadorProducto');
+        const filtro = document.getElementById('filtroCategoria');
+        if (buscador) buscador.oninput = e => renderProductos(e.target.value, filtro ? filtro.value : "");
+        if (filtro) filtro.onchange = e => renderProductos(buscador ? buscador.value : "", e.target.value);
+    }
+
+    // Guardado con ajuste de stock (igual que antes) — ahora guarda descuento_general y recalcula total correctamente
+    window.saveEditPedido = async function(id, nuevosProductos, dni) {
+        const cliente = document.getElementById('editPedidoCliente').value.trim();
+        const localidad_id = document.getElementById('editPedidoLocalidad').value;
+
+        // Obtener pedido original para restaurar/ajustar stock
+        const { data: pedidoOriginal } = await supabase.from('pedidos').select('*').eq('id', id).single();
+        const productosOriginal = pedidoOriginal.productos || [];
+        const mapOriginal = {};
+        productosOriginal.forEach(p => mapOriginal[p.id] = p.cantidad);
+        const mapNuevo = {};
+        nuevosProductos.forEach(p => mapNuevo[p.id] = p.cantidad);
+        const allIds = new Set([...productosOriginal.map(p => p.id), ...nuevosProductos.map(p => p.id)]);
+
+        for (const prodId of allIds) {
+            const cantOriginal = mapOriginal[prodId] || 0;
+            const cantNueva = mapNuevo[prodId] || 0;
+            const dif = cantNueva - cantOriginal;
+            if (dif !== 0) {
+                const { data: promo } = await supabase.from('promociones').select('*').eq('id', prodId).single();
+                await supabase.from('promociones').update({ stock: (promo.stock || 0) - dif }).eq('id', prodId);
+            }
+        }
+
+        // Recalcular total considerando descuentos por producto y descuento general
+        const totalSinDescuento = nuevosProductos.reduce((s, p) =>
+            s + p.precio * p.cantidad * (1 - (p.descuento || 0) / 100), 0
+        );
+        const totalConDescuento = totalSinDescuento * (1 - (descuentoGeneral || 0) / 100);
+
+        // Guardar en supabase incluyendo descuento_general
+        const { error } = await supabase.from('pedidos').update({
+            cliente,
+            dni,
+            localidad_id,
+            productos: nuevosProductos,
+            total: totalConDescuento,
+            descuento_general: descuentoGeneral
+        }).eq('id', id);
+
+        if (error) return alert(error.message);
+
+        closeModal();
+        await fetchOrders();
+        await fetchPromos();
+        showToast('Pedido actualizado correctamente');
+    };
+
+    // Render inicial
+    renderModal();
+}
+
+
+/* ========== ELIMINAR PEDIDO ========== */
+async function deleteOrder(id){
+    if(!confirm('Eliminar pedido?')) return;
+    const { data } = await supabase.from('pedidos').select('*').eq('id', id).single();
+    if(data.productos && data.productos.length){
+        for(const pr of data.productos){
+            const promo = await getPromoById(pr.id);
+            const newStock = (promo.stock || 0) + pr.cantidad;
+            await supabase.from('promociones').update({ stock: newStock }).eq('id', pr.id);
+        }
+    }
+    await supabase.from('pedidos').delete().eq('id', id);
+    await fetchOrders();
+    await fetchPromos(); // Actualizar lista de promociones para reflejar stock
+    showToast('Pedido eliminado y stock restaurado');
+}
+
+
+// =========================================================
+// 🧾 EXPORTAR PEDIDO A PDF (Versión estable tipo descargarPDF)
+// =========================================================
+
+async function exportPedidoPDF(pedido) {
+    try {
+        const { jsPDF } = window.jspdf;
+        if (!jsPDF) throw new Error("jsPDF no está cargado. Asegúrate de incluir jspdf.umd.min.js y jspdf.plugin.autotable.min.js");
+
+        const doc = new jsPDF("p", "mm", "a4");
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const marginX = 15;
+        const contentWidth = pageWidth - (marginX * 2);
+
+        // ==============================
+        // 🔹 Datos del pedido y cliente
+        // ==============================
+        const nombreCliente = (pedido.cliente || "Sin nombre").trim();
+        const localidad = (pedido.localidad || pedido.localidad_nombre || "Sin localidad").trim();
+        const dni = (pedido.dni || "Sin DNI").trim();
+        const fecha = new Date().toLocaleString("es-AR");
+
+        if (!pedido.productos || pedido.productos.length === 0) {
+            alert("El pedido no contiene productos para generar el PDF.");
+            return;
+        }
+
+        // ==============================
+        // 💰 Calcular productos, descuentos y totales
+        // ==============================
+        let ahorroTotal = 0;        // ahorro por promociones
+        let descuentoTotal = 0;     // descuentos individuales
+
+        const productos = pedido.productos.map(p => {
+            const precioActual = p.precio || 0;
+            const cantidad = p.cantidad || 0;
+            const descuento = p.descuento || 0;
+            const precioConDescuento = precioActual * (1 - descuento / 100);
+            const subtotal = precioConDescuento * cantidad;
+
+            const subtotalSinDescuento = precioActual * cantidad;
+            descuentoTotal += subtotalSinDescuento - subtotal;
+
+            // calcular ahorro por promo (precio anterior - actual)
+            let ahorroPromo = 0;
+            if (p.precio_anterior && p.precio_anterior > precioActual) {
+                ahorroPromo = (p.precio_anterior - precioActual) * cantidad;
+                ahorroTotal += ahorroPromo;
+            }
+
+            return [
+                p.nombre || "Sin nombre",
+                cantidad,
+                p.precio_anterior && p.precio_anterior > precioActual ? `$${p.precio_anterior.toFixed(2)}` : "-",
+                `$${precioActual.toFixed(2)}`,
+                `$${subtotal.toFixed(2)}`
+            ];
+        });
+
+        const totalSinDescuento = pedido.productos.reduce((acc, p) => acc + (p.precio || 0) * (p.cantidad || 0), 0);
+        const descuentoGeneral = pedido.descuento_general || 0;
+        const totalConDescuentoGeneral = totalSinDescuento * (1 - descuentoGeneral / 100);
+        const totalFinal = totalConDescuentoGeneral - descuentoTotal;
+
+        const totalPagos = (pedido.pagos || []).reduce((sum, p) => sum + (p.monto || 0), 0);
+        const saldoPendiente = Math.max(0, totalFinal - totalPagos);
+
+        // ==============================
+        // 🖼️ Cargar logo desde Supabase
+        // ==============================
+        const logoURL = "https://ejbqlejlgprvwzrptojo.supabase.co/storage/v1/object/public/promo_images/logodistribuidora.png";
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = logoURL;
+
+        const generarContenidoYGuardar = (startY) => {
+            let currentY = startY;
+
+            // ==============================
+            // 🧾 Encabezado
+            // ==============================
+            doc.setFontSize(16);
+            doc.setFont("helvetica", "bold");
+            doc.text("Pedido de Cliente", pageWidth / 2, currentY, { align: "center" });
+            currentY += 15;
+
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Cliente: ${nombreCliente}`, marginX, currentY); currentY += 8;
+            doc.text(`DNI: ${dni}`, marginX, currentY); currentY += 8;
+            doc.text(`Localidad: ${localidad}`, marginX, currentY); currentY += 8;
+            doc.text(`Fecha: ${fecha}`, marginX, currentY); currentY += 8;
+
+            // ==============================
+            // 📦 Tabla de productos
+            // ==============================
+            doc.autoTable({
+                startY: currentY + 5,
+                head: [["Producto", "Cantidad", "Precio Ant.", "Precio Actual", "Subtotal"]],
+                body: productos,
+                styles: { fontSize: 10, cellPadding: 3, overflow: 'linebreak' },
+                headStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: "bold" },
+                columnStyles: {
+                    0: { cellWidth: 70 },
+                    1: { cellWidth: 20, halign: "center" },
+                    2: { cellWidth: 30, halign: "right" },
+                    3: { cellWidth: 30, halign: "right" },
+                    4: { cellWidth: 30, halign: "right" },
+                },
+                tableWidth: contentWidth,
+                margin: { left: marginX, right: marginX },
+            });
+
+            let finalY = doc.lastAutoTable.finalY;
+
+            // ==============================
+            // 💳 Pagos realizados
+            // ==============================
+            if (pedido.pagos && pedido.pagos.length > 0) {
+                const pagosTabla = pedido.pagos.map(pg => [
+                    pg.metodo || "-",
+                    pg.destinatario || "-",
+                    pg.monto ? `$${pg.monto.toFixed(2)}` : "$0.00"
+                ]);
+
+                finalY += 10;
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(13);
+                doc.text("Pagos Realizados", marginX, finalY);
+
+                doc.autoTable({
+                    startY: finalY + 5,
+                    head: [["Método", "Destinatario", "Monto"]],
+                    body: pagosTabla,
+                    styles: { fontSize: 10, cellPadding: 3 },
+                    headStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: "bold" },
+                    columnStyles: {
+                        0: { cellWidth: 60 },
+                        1: { cellWidth: 80 },
+                        2: { cellWidth: 40, halign: "right" },
+                    },
+                    tableWidth: "wrap",
+                    margin: { left: marginX, right: marginX },
+                });
+                finalY = doc.lastAutoTable.finalY;
+            }
+
+            // ==============================
+            // 🧮 Totales
+            // ==============================
+            const totalX = pageWidth - marginX;
+
+            finalY += 10;
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text(`Total del Pedido: $${totalSinDescuento.toFixed(2)}`, totalX, finalY, { align: "right" });
+            finalY += 8;
+            if (descuentoGeneral > 0) {
+                doc.text(`Descuento general (${descuentoGeneral.toFixed(2)}%): -$${(totalSinDescuento * descuentoGeneral / 100).toFixed(2)}`, totalX, finalY, { align: "right" });
+                finalY += 8;
+            }
+            doc.text(`Pagado: $${totalPagos.toFixed(2)}`, totalX, finalY, { align: "right" });
+            finalY += 8;
+            doc.text(`Saldo pendiente: $${saldoPendiente.toFixed(2)}`, totalX, finalY, { align: "right" });
+
+            // ==============================
+            // 💬 Líneas finales con descuentos
+            // ==============================
+            const descuentoAplicadoTotal = (totalSinDescuento - totalFinal) > 0 ? (totalSinDescuento - totalFinal) : 0;
+
+            finalY += 12;
+            doc.setFontSize(12);
+            doc.setTextColor(0, 102, 204); // Azul suave
+            if (ahorroTotal > 0) {
+                doc.text(`Suma de ahorro con promociones: $${ahorroTotal.toFixed(2)}`, marginX, finalY);
+                finalY += 7;
+            }
+            if (descuentoAplicadoTotal > 0) {
+                doc.text(`Se le aplicó un descuento de: $${descuentoAplicadoTotal.toFixed(2)}`, marginX, finalY);
+            }
+            doc.setTextColor(0, 0, 0);
+
+            // ==============================
+            // 💾 Guardar PDF
+            // ==============================
+            const safeName = nombreCliente.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            const fechaArchivo = new Date().toISOString().split('T')[0];
+            doc.save(`Pedido_${safeName}_${fechaArchivo}.pdf`);
+        };
+
+        // ==============================
+        // 🖼️ Carga del logo
+        // ==============================
+        img.onload = () => {
+            const logoWidth = 110;
+            const logoHeight = 35;
+            const logoX = (pageWidth - logoWidth) / 2;
+            const startYAfterLogo = 55;
+            doc.addImage(img, 'PNG', logoX, 10, logoWidth, logoHeight);
+            generarContenidoYGuardar(startYAfterLogo);
+        };
+
+        img.onerror = () => {
+            console.warn("⚠️ No se pudo cargar el logo, generando PDF sin imagen.");
+            generarContenidoYGuardar(20);
+        };
+
+        if (img.complete) img.onload();
+
+    } catch (err) {
+        console.error("❌ Error al generar el PDF:", err);
+        alert("Error al generar el PDF: " + err.message);
+    }
+}
+
+
+
+
+
+
+
+
+/* ========================================================= Utilidades Faltantes ========================================================= */
+
+// 💥 FUNCIONES FALTANTES AÑADIDAS 💥
+
+// 1. Placeholder para showToast (Puedes personalizarla con un div modal si lo deseas)
+function showToast(message, duration = 3000) {
+    console.log("TOAST:", message);
+    alert(message); // Usamos alert temporalmente para evitar el error
+}
+
+// 2. Placeholder para safeText (Simplemente devuelve el texto para evitar el error)
+function safeText(text) {
+    return String(text);
+}
+
+// 3. Placeholder de función de navegación (Para evitar errores en la estructura)
+function navigateTo(section) {
+    console.log("Navegando a:", section);
+    // document.getElementById(section).classList.add('active'); // Lógica real de activación
+}
+
+
+
+
+
+// ================= CATEGORÍAS =================
+
+async function fetchCategorias() {
+    try {
+        // 1. Obtener datos de Supabase
+        const { data: categorias = [], error: catError } = await supabase
+            .from("categorias")
+            .select("*")
+           .order("nombre", { ascending: true });
+
+
+        if (catError) throw catError; 
+        
+        const container = document.getElementById('categoriaList');
+        
+        // 2. Verificación Crítica: ¿Existe el contenedor en el DOM?
+        if (!container) {
+            console.warn("Elemento 'categoriaList' no encontrado. Asegúrate de que la pestaña de categorías esté activa.");
+            return; 
+        }
+        
+        // 3. Limpiar el contenedor antes de renderizar
+        container.innerHTML = ''; 
+        
+        // 4. Renderizar cada categoría
+        for (const cat of categorias) {
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.dataset.catId = cat.id;
+
+            // info
+            const info = document.createElement('div');
+            info.className = 'card-info';
+            info.style = 'font-size: 14px; color: #555; font-weight: normal;';
+            info.textContent = cat.nombre;
+
+            // acciones
+            const actions = document.createElement('div');
+            actions.className = 'card-actions';
+
+            const editBtn = document.createElement('button');
+            editBtn.textContent = '✏️';
+            editBtn.addEventListener('click', () => editCategoria(cat.id, cat.nombre));
+
+            const delBtn = document.createElement('button');
+            delBtn.textContent = '🗑️';
+            delBtn.addEventListener('click', () => deleteCategoria(cat.id));
+
+            actions.appendChild(editBtn);
+            actions.appendChild(delBtn);
+
+            div.appendChild(info);
+            div.appendChild(actions);
+            container.appendChild(div);
+        }
+
+    } catch (err) {
+        console.error('fetchCategorias error', err.message || err);
+        showToast ? showToast('Error cargando categorías.', 3000) : alert('Error cargando categorías: ' + (err.message || err));
+    }
+}
+
+
+
+// ================= AGREGAR NUEVA CATEGORÍA =================
+
+document.getElementById("addCategoriaBtn")?.addEventListener("click", () => {
+    const nombre = prompt("Ingrese el nombre de la nueva categoría:");
+
+    if (nombre && nombre.trim() !== "") {
+        guardarNuevaCategoria(nombre.trim());
+    } else {
+        alert("Debes ingresar un nombre válido para la categoría.");
+    }
+});
+
+
+// Función para guardar la nueva categoría en Supabase
+async function guardarNuevaCategoria(nombre) {
+    try {
+        const { error } = await supabase
+            .from("categorias")
+            .insert([{ nombre }]);
+
+        if (error) throw error;
+
+        alert("✅ Categoría agregada correctamente");
+        fetchCategorias(); // vuelve a cargar la lista de categorías (si existe)
+    } catch (err) {
+        alert("Error al agregar categoría: " + err.message);
+    }
+}
+
+
+
+// ----------------- EDITAR CATEGORÍA (versión robusta) -----------------
+function editCategoria(id, nombre) {
+    const nombreSeguro = escapeHtml(nombre);
+
+    // Creamos el HTML completo del modal (título incluido)
+    const modalHtml = `
+        <div style="padding: 18px 12px; width: 100%;">
+            <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 18px; color: #333;">
+                Editar categoría
+            </h3>
+
+            <div style="display: flex; gap: 10px; align-items: center; width: 100%;">
+                <input 
+                    id="editCat" 
+                    type="text" 
+                    value="${nombreSeguro}" 
+                    placeholder="Escriba el nuevo nombre"
+                    style="
+                        flex-grow: 1; 
+                        padding: 10px 16px;
+                        border-radius: 8px;
+                        border: 1px solid #ccc;
+                        font-size: 16px;
+                    "
+                >
+                <button 
+                    onclick="updateCategoria(${id})" 
+                    style="
+                        background: #3498db;
+                        color: #fff;
+                        border: none;
+                        padding: 10px 18px;
+                        border-radius: 8px;
+                        font-weight: bold;
+                        font-size: 16px;
+                        cursor: pointer;
+                        white-space: nowrap;
+                    "
+                >
+                    Guardar
+                </button>
+            </div>
+        </div>
+    `;
+
+    openModal(modalHtml);
+
+    // Enfocar el input tras abrir el modal
+    setTimeout(() => {
+        document.getElementById('editCat')?.focus();
+    }, 150);
+}
+
+
+
+
+// ================= ELIMINAR CATEGORÍA =================
+
+async function deleteCategoria(id) {
+    if (!confirm("¿Seguro que querés eliminar esta categoría?")) return;
+
+    try {
+        // verificar si hay promociones usando esa categoría
+        const { data: promosRelacionadas, error: checkError } = await supabase
+            .from("promociones")
+            .select("id, nombre")
+            .eq("categoria_id", id);
+
+        if (checkError) throw checkError;
+
+        if (promosRelacionadas.length > 0) {
+            alert(`⚠️ No se puede eliminar esta categoría porque está asociada a ${promosRelacionadas.length} promoción(es).`);
+            return;
+        }
+
+        const { error } = await supabase.from("categorias").delete().eq("id", id);
+        if (error) throw error;
+
+        alert("✅ Categoría eliminada correctamente");
+        fetchCategorias();
+    } catch (err) {
+        alert("Error al eliminar categoría: " + err.message);
+    }
+}
+
+
+
+// ================= ACTUALIZAR CATEGORÍA =================
+
+async function updateCategoria(id) {
+    const inputElement = document.getElementById("editCat");
+    if (!inputElement) {
+        return console.error("No se encontró el campo de edición (#editCat).");
+    }
+    
+    const nuevoNombre = inputElement.value.trim();
+
+    if (!nuevoNombre) {
+        alert("El nombre de la categoría no puede estar vacío.");
+        return;
+    }
+
+    try {
+        if (typeof closeModal === 'function') {
+            closeModal(); 
+        } else {
+            console.warn("Función closeModal() no definida. El modal debe cerrarse manualmente.");
+        }
+        
+        const { error } = await supabase
+            .from("categorias")
+            .update({ nombre: nuevoNombre })
+            .eq("id", id);
+
+        if (error) throw error;
+
+        alert("✅ Categoría actualizada correctamente.");
+        fetchCategorias(); 
+
+    } catch (err) {
+        console.error("Error al actualizar categoría:", err);
+        alert("Error al actualizar categoría: " + (err.message || 'Error desconocido'));
+    }
+}
+
+
+
+// ================= FUNCIONES DE SEGURIDAD =================
+
+function safeText(str) {
+    if (typeof str !== 'string') return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+
+function escapeHtml(str) {
+    if (typeof str !== 'string') return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+
+
+
+// ================= LOCALIDADES =================
+async function fetchLocalidades(){
+  const { data, error } = await supabase.from("localidades").select("*").order("id");
+  if(error) return console.error(error);
+
+  // Lista para gestión
+  const container = document.getElementById("localidadList");
+  container.innerHTML = "";
+  data.forEach(l=>{
+    // Tarjeta simple con flex
+    const div = document.createElement('div');
+    div.className = 'item-card';
+    div.style.display = 'flex';
+    div.style.justifyContent = 'space-between';
+    div.style.alignItems = 'center';
+    div.style.background = '#fff';
+    div.style.border = '1px solid #eee';
+    div.style.borderRadius = '10px';
+    div.style.padding = '12px 18px';
+    div.style.marginBottom = '12px';
+    div.style.boxShadow = '0 2px 12px rgba(0,0,0,0.06)';
+
+    // Nombre
+    const nombreDiv = document.createElement('div');
+    nombreDiv.textContent = l.nombre;
+    nombreDiv.style.fontSize = '1.08em';
+    nombreDiv.style.fontWeight = '500';
+
+    // Botones
+    const btnsDiv = document.createElement('div');
+    btnsDiv.style.display = 'flex';
+    btnsDiv.style.gap = '14px';
+    btnsDiv.innerHTML = `
+      <button onclick="editLocalidad(${l.id},'${escapeHtml(l.nombre)}')" style="background:#3498db;color:#fff;border:none;padding:7px 18px;border-radius:7px;font-weight:bold;font-size:15px;cursor:pointer;">✏️ Editar</button>
+      <button onclick="deleteLocalidad(${l.id})" style="background:#ff4d4f;color:#fff;border:none;padding:7px 18px;border-radius:7px;font-weight:bold;font-size:15px;cursor:pointer;">🗑️ Eliminar</button>
+    `;
+
+    div.appendChild(nombreDiv);
+    div.appendChild(btnsDiv);
+    container.appendChild(div);
+  });
+
+  // Select en formulario de pedidos
+  const sel = document.getElementById("pedidoLocalidad");
+  sel.innerHTML = '<option value="">Seleccione localidad</option>';
+  data.forEach(l=>{
+    sel.innerHTML += `<option value="${l.id}">${escapeHtml(l.nombre)}</option>`;
+  });
+}
+
+async function addLocalidad(){
+  const nombre=document.getElementById("localidadNombre").value.trim(); if(!nombre) return alert("Ingrese nombre");
+  const {error}=await supabase.from("localidades").insert([{nombre}]); if(error) return alert(error.message); document.getElementById("localidadNombre").value=""; fetchLocalidades();
+}
+
+function editLocalidad(id,nombre){ 
+  openModal("Editar localidad", `
+    <div style="padding:18px 12px;">
+      <input id="editLoc" value="${escapeHtml(nombre)}" style="padding:10px 16px;border-radius:8px;border:1px solid #ccc;font-size:16px;">
+      <button onclick="updateLocalidad(${id})" style="margin-left:10px;background:#3498db;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-weight:bold;font-size:16px;cursor:pointer;">Guardar</button>
+    </div>
+  `); 
+}
+async function updateLocalidad(id){ 
+  const nombre=document.getElementById("editLoc").value.trim(); if(!nombre) return alert("Ingrese nombre"); 
+  const {error}=await supabase.from("localidades").update({nombre}).eq("id",id); 
+  if(error) return alert(error.message); 
+  closeModal(); fetchLocalidades(); 
+}
+async function deleteLocalidad(id){ 
+  if(!confirm("Eliminar localidad?")) return; 
+  await supabase.from("localidades").delete().eq("id",id); 
+  fetchLocalidades(); 
+}
+
+
+
+
+
+// ================= DOCUMENTOS =================
+async function addDocumento() {
+  const file = document.getElementById("docArchivo").files[0];
+  if (!file) return alert("Seleccione un archivo");
+  const fileName = `${Date.now()}_${file.name}`;
+
+  const { error: uploadError } = await supabase.storage.from("private-documents").upload(fileName, file);
+  if (uploadError) return alert("Error al subir: " + uploadError.message);
+
+  await supabase.from("documentos").insert([{ nombre: file.name, archivo: fileName }]);
+  document.getElementById("docArchivo").value = "";
+  fetchDocumentos();
+}
+
+async function fetchDocumentos() {
+  const { data, error } = await supabase.from("documentos").select("*").order("created_at", { ascending: false });
+  const container = document.getElementById("docList");
+  container.innerHTML = "";
+
+  if (error) {
+    container.innerHTML = `<span style="color:red;">Error: ${escapeHtml(error.message)}</span>`;
+    return;
+  }
+
+  if (!data?.length) {
+    container.innerHTML = '<span style="color:#888;">No hay documentos subidos.</span>';
+    return;
+  }
+
+  const signedDocs = await Promise.all(
+    data.map(async doc => {
+      let url = "#";
+      if (doc.archivo) {
+        const { data: urlData } = await supabase.storage.from("private-documents").createSignedUrl(doc.archivo, 60 * 60);
+        url = urlData?.signedUrl || "#";
+      }
+      const fecha = doc.created_at ? new Date(doc.created_at).toLocaleString() : '';
+      return `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;">
+          <div>
+            <a href="${url}" target="_blank">${escapeHtml(doc.nombre)}</a>
+            <span style="color:#888;font-size:0.97em;margin-left:8px;">${fecha}</span>
+          </div>
+          <button onclick="deleteDocumento(${doc.id}, '${doc.archivo}')" style="background:#ff4d4f;color:#fff;border:none;padding:7px 12px;border-radius:6px;font-weight:bold;cursor:pointer;">Eliminar</button>
+        </div>
+
+      `;
+    })
+  );
+
+  container.innerHTML = signedDocs.join("");
+}
+
+async function deleteDocumento(id, archivo) {
+  if (!confirm("¿Eliminar documento?")) return;
+  await supabase.storage.from("private-documents").remove([archivo]);
+  await supabase.from("documentos").delete().eq("id", id);
+  fetchDocumentos();
+}
+
+
+
+
+
+
+// === INICIALIZACIÓN DE EVENTOS ===
+document.addEventListener('DOMContentLoaded', async () => {
+    // Conexiones de botones (Esto está bien y se mantiene)
+    document.querySelectorAll('.sidebar .tab-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const tabName = this.getAttribute('data-tab');
+
+            if (tabName === 'promos_menu') {
+                const subMenu = document.getElementById('promoSubMenu');
+                subMenu.classList.toggle('open');
+                this.classList.toggle('active', subMenu.classList.contains('open'));
+            } else {
+                // Navegación normal: Llama a activateSection, que también limpia
+                activateSection(tabName); 
+            }
+        });
+    });
+
+
+
+    // 2. 💥 SOLUCIÓN: Forzar la activación de la sección por defecto ('promos') 💥
+    //    Esto dispara:
+    //    a) El CSS para ocultar la sección 'clienteTienda'.
+    //    b) La llamada a limpiarContenedoresTienda() dentro de activateSection.
+    activateSection('promos'); 
+    
+    // 3. Cargar el resto de los datos (estos fetch ya NO deberían estar en el DCL, 
+    //    sino solo en la función activateSection para cada pestaña, pero se mantienen 
+    //    aquí para evitar otros errores de "not defined" si los usas al inicio)
+    fetchCategorias();
+    fetchLocalidades();
+    fetchPromos(); 
+    fetchOrders(); 
+    fetchDocumentos();
+    loadPromoSubMenu();
+  
+
+
+
+  const btnDocs = document.querySelector("button[data-tab='documentos']");
+  if (btnDocs) btnDocs.addEventListener("click", fetchDocumentos);
+
+  const menuBtn = document.getElementById('menuBtn');
+  if (menuBtn) menuBtn.addEventListener('click', toggleSidebar);
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (window.innerWidth <= 500 && document.querySelector('.sidebar').classList.contains('open')) {
+        toggleSidebar();
+      }
+    });
+  });
+});
+
+
+
+
+// Asigna los eventos de clic
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.getAttribute('data-tab');
+    activateSection('promos');
+    if (window.innerWidth <= 500 && document.querySelector('.sidebar').classList.contains('open')) {
+      toggleSidebar();
+    }
+  });
+});
+
+
+
+</script>
+</body>
+</html>
+
+
+
